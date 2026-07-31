@@ -1,0 +1,14 @@
+:root {
+
+--button-primary-bg: var(--color-primary);
+--button-primary-text: white;
+
+--input-border: var(--color-outline-variant);
+
+--table-header-bg:
+var(--color-surface-container-low);
+
+--table-hover:
+var(--color-surface-container-low);
+
+}

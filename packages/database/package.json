@@ -1,0 +1,15 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^7.9.1",
+    "prisma": "^7.9.1"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate-dev": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
+  }
+}

@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme {
+  /* Colors */
+
+  --color-surface: var(--color-surface);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-low: var(--color-surface-container-low);
+
+  --color-primary: var(--color-primary);
+  --color-primary-container: var(--color-primary-container);
+
+  --color-secondary: var(--color-secondary);
+
+  --color-error: var(--color-error);
+
+  --color-outline: var(--color-outline);
+
+  /* Fonts */
+
+  --font-sans: Inter, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Radius */
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  /* Layout */
+
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-header: var(--header-height);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
