@@ -2,9 +2,9 @@
 
 ## 1. Product Overview
 
-| Field | Value |
-|---|---|
-| **Product Name** | OperoERP |
+| Field            | Value                             |
+| ---------------- | --------------------------------- |
+| **Product Name** | OperoERP                          |
 | **Product Type** | Small Business ERP + CRM Platform |
 
 ### Purpose
@@ -53,28 +53,33 @@ The system should provide a **centralized platform**.
 ### Primary Users
 
 **Admin / Owner**
+
 - Business overview
 - Financial visibility
 - User management
 - Reports
 
 **Sales Representative**
+
 - Manage customers
 - Track leads
 - Create quotations
 - Follow up opportunities
 
 **Sales Manager**
+
 - Approve quotations
 - Monitor sales performance
 - Manage team pipeline
 
 **Warehouse Staff**
+
 - Manage stock
 - Receive products
 - Deliver products
 
 **Accountant**
+
 - Manage invoices
 - Track payments
 - Generate financial reports
@@ -98,11 +103,13 @@ Customer → Quotation → Sales Order → Invoice → Payment
 ### Included
 
 #### Authentication
+
 - User login
 - User registration
 - Password management
 
 #### Organization Management
+
 - Company profile
 - Departments
 - Users
@@ -110,12 +117,14 @@ Customer → Quotation → Sales Order → Invoice → Payment
 #### CRM — Customer Management
 
 Users can:
+
 - Create customers
 - Edit customers
 - View customer history
 - Add notes
 
 **Customer fields:**
+
 - Company name
 - Contact person
 - Email
@@ -127,11 +136,13 @@ Users can:
 #### Product Management
 
 Users can:
+
 - Create products
 - Update products
 - Manage pricing
 
 **Product fields:**
+
 - SKU
 - Name
 - Category
@@ -144,6 +155,7 @@ Users can:
 **Quotation**
 
 Features:
+
 - Create quotation
 - Add products
 - Apply discount
@@ -167,6 +179,7 @@ Status: `Draft → Issued → Paid / Overdue / Cancelled`
 #### Dashboard
 
 Displays:
+
 - Total customers
 - Revenue
 - Open quotations
@@ -193,32 +206,38 @@ Do **NOT** build:
 ### V1
 
 **Inventory**
+
 - Warehouse
 - Stock quantity
 - Stock movement
 - Stock adjustment
 
 **Purchasing**
+
 - Vendors
 - Purchase orders
 - Goods receiving
 
 **Workflow**
+
 - Approval system
 - Manager approval
 
 **Notifications**
+
 - Email
 - In-app notifications
 
 ### V2
 
 **Finance**
+
 - Chart of accounts
 - Accounting entries
 - AR/AP
 
 **Advanced CRM**
+
 - Lead pipeline
 - Sales forecast
 - Activities
@@ -244,21 +263,25 @@ Lead → Customer → Quotation → Approval → Sales Order → Delivery → In
 ## 8. Non-Functional Requirements
 
 **Security**
+
 - Role-based access control
 - Password hashing
 - Audit logs
 
 **Performance** — system should support:
+
 - 100 users
 - 10,000 customers
 - 100,000 transactions
 
 **Availability**
+
 - Automated backup
 - Error logging
 - Monitoring
 
 **Usability**
+
 - Responsive UI
 - Search everywhere
 - Clear navigation
@@ -280,11 +303,11 @@ MVP is successful when a small company can:
 
 ## 10. Product Direction (Locked)
 
-| Decision | Choice |
-|---|---|
+| Decision                 | Choice                                      |
+| ------------------------ | ------------------------------------------- |
 | **Target Business Type** | General SME (Odoo-style, industry-agnostic) |
-| **Business Complexity** | Realistic SME |
-| **Main Learning Goal** | System Design + Full-stack |
+| **Business Complexity**  | Realistic SME                               |
+| **Main Learning Goal**   | System Design + Full-stack                  |
 
 **Implications of "General SME + Realistic SME":**
 
@@ -304,16 +327,21 @@ The MVP scope in Section 5 is unchanged — this only affects how rigorously eac
 Decisions made to serve the system-design learning goal:
 
 ### Modular Monolith
+
 Build as a single deployable service with clear internal module boundaries (CRM, Sales, and later Inventory, Finance) rather than true microservices. Microservices would over-engineer a solo/learning project and slow full-stack iteration speed. Module boundaries are enforced in code structure even though everything ships together.
 
 ### Domain Boundaries Enforced Early
+
 Modules interact through defined interfaces, not by reaching into each other's internals — e.g. Sales should not query Inventory's tables directly once Inventory exists in V1. Establishing this discipline now avoids a costly retrofit later.
 
 ### Status Flows as First-Class State Machines
+
 Quotation, Sales Order, and Invoice status transitions are the most valuable system-design exercise in this app. Model them explicitly as a status transition table (who can transition what, from which state, with what side effects) rather than scattering conditional checks across the codebase.
 
 ### Audit Logging as Infrastructure
+
 Since audit logs are a stated non-functional requirement, decide the mechanism up front rather than retrofitting it:
+
 - **Option A:** Lightweight — `created_by` / `updated_by` / `updated_at` fields plus a dedicated changelog table for key entities.
 - **Option B:** Event-sourced-ish — log every mutation as an event, derive current state from the event log.
 
@@ -324,6 +352,7 @@ Since audit logs are a stated non-functional requirement, decide the mechanism u
 ## 12. Next Step
 
 Convert this PRD into Plane **Epics → User Stories → Tasks**, using:
+
 - Section 5 (MVP Scope) as the epic boundary for MVP
 - Section 6 (Future Versions) as the epic boundary for V1/V2
 - Section 11 (Architecture Direction) as constraints applied across all epics
