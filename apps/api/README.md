@@ -80,13 +80,6 @@ yarn workspace api test:e2e     # e2e tests (test/jest-e2e.json)
 yarn workspace api test:cov     # coverage
 ```
 
-## Database
-
-PostgreSQL access currently uses the `pg` driver directly. The Prisma 7 client in
-`packages/database` generates ESM output (uses `import.meta.url`), which cannot be
-imported from this CommonJS package without a build change — revisit once the API moves
-to ESM or the schema sets `moduleFormat = "cjs"`.
-
 ## Architecture notes
 
 - **Modular monolith** — new domains (CRM, Sales, …) are added as NestJS modules with
