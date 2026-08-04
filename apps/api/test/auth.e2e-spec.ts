@@ -10,8 +10,8 @@ process.env.CORS_ORIGIN = 'http://localhost:3000';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
-import * as cookieParser from 'cookie-parser';
+import request from 'supertest';
+import cookieParser from 'cookie-parser';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -219,7 +219,8 @@ describe('Auth (e2e)', () => {
     accessToken = res.body.accessToken;
 
     // Extract refresh-token value from Set-Cookie for later tests.
-    const cookies = res.headers['set-cookie'] as string[] | undefined;
+    const cookies = res.headers['set-cookie'] as unknown as
+      string[] | undefined;
     expect(cookies).toBeDefined();
     const refreshCookie = cookies?.find((c) => c.startsWith('refresh_token='));
     expect(refreshCookie).toBeDefined();
@@ -264,7 +265,8 @@ describe('Auth (e2e)', () => {
     expect(res.body.accessToken.length).toBeGreaterThan(0);
 
     // A fresh refresh cookie should be set (rotation).
-    const cookies = res.headers['set-cookie'] as string[] | undefined;
+    const cookies = res.headers['set-cookie'] as unknown as
+      string[] | undefined;
     expect(cookies?.some((c) => c.startsWith('refresh_token='))).toBe(true);
 
     // Capture updated state.
@@ -289,7 +291,8 @@ describe('Auth (e2e)', () => {
     expect(res.body.message).toBe('Logged out successfully');
 
     // Cookie should be cleared (Max-Age=0 or immediate expiry).
-    const cookies = res.headers['set-cookie'] as string[] | undefined;
+    const cookies = res.headers['set-cookie'] as unknown as
+      string[] | undefined;
     const clearCookie = cookies?.find((c) => c.startsWith('refresh_token='));
     expect(clearCookie).toBeDefined();
     // Express clearCookie sets Max-Age=0 or Expires in the past.
