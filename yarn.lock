@@ -3680,6 +3680,7 @@ __metadata:
   resolution: "OperoERP@workspace:."
   dependencies:
     "@eslint/js": "npm:^10.0.1"
+    "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^26.1.2"
     eslint: "npm:^9.18.0"
     prettier: "npm:^3.9.6"
