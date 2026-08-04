@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { envSchema } from './env.schema';
+import { envSchema } from '@opero/config';
 
 @Module({
   imports: [

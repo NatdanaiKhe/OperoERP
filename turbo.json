@@ -2,11 +2,28 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "db:generate": {
+      "dependsOn": ["@opero/config#build"],
       "outputs": ["node_modules/.prisma/client/**"]
     },
     "db:migrate": {
       "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL"],
+      "dependsOn": ["@opero/config#build"]
+    },
+    "db:migrate-dev": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "dependsOn": ["@opero/config#build"]
+    },
+    "db:deploy": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "dependsOn": ["@opero/config#build"]
+    },
+    "db:seed": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "dependsOn": ["@opero/config#build"]
     },
     "build": {
       "dependsOn": ["^build"],
@@ -17,7 +34,7 @@
       "dependsOn": ["^lint"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck", "database#db:generate"]
     },
     "dev": {
       "cache": false,
