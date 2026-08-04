@@ -15,17 +15,17 @@ entire monorepo.
 
 ### The 6-var Joi schema (`packages/config/src/env.schema.ts`)
 
-| Variable        | Required | Default            | Notes                  |
-| --------------- | -------- | ------------------ | ---------------------- |
-| `NODE_ENV`      | yes (*)  | —                  | `development`/`production`/`test` |
-| `PORT`          | yes      | `4000`             | API listen port        |
-| `DATABASE_URL`  | yes      | —                  | PostgreSQL conn string |
-| `JWT_SECRET`    | yes      | —                  | Min 32 characters      |
-| `JWT_EXPIRES_IN`| no       | `15m`              | JWT sign options       |
-| `CORS_ORIGIN`   | no       | `http://localhost:3000` | Comma-separated   |
+| Variable         | Required | Default                 | Notes                             |
+| ---------------- | -------- | ----------------------- | --------------------------------- |
+| `NODE_ENV`       | yes (*)  | —                       | `development`/`production`/`test` |
+| `PORT`           | yes      | `4000`                  | API listen port                   |
+| `DATABASE_URL`   | yes      | —                       | PostgreSQL conn string            |
+| `JWT_SECRET`     | yes      | —                       | Min 32 characters                 |
+| `JWT_EXPIRES_IN` | no       | `15m`                   | JWT sign options                  |
+| `CORS_ORIGIN`    | no       | `http://localhost:3000` | Comma-separated                   |
 
 (*) Required means the schema will reject missing values — but default/defaulting rules
-    are handled by Joi's `.required()`/`.default()` semantics.
+are handled by Joi's `.required()`/`.default()` semantics.
 
 ### How consumers use it
 

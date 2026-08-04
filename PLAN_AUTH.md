@@ -41,10 +41,10 @@ together via `RolePermission` — all idempotent via upserts.
 
 All under `/api/v1/auth`:
 
-| Method | Path          | Auth required | Description             |
-| ------ | ------------- | ------------- | ----------------------- |
-| POST   | `/register`   | public        | Create account + role   |
-| POST   | `/login`      | public        | Issue token pair        |
-| POST   | `/refresh`    | public        | Rotate refresh token    |
-| POST   | `/logout`     | public        | Revoke refresh token    |
-| GET    | `/profile`    | authenticated | Current user info       |
+| Method | Path        | Auth required | Description           |
+| ------ | ----------- | ------------- | --------------------- |
+| POST   | `/register` | public        | Create account + role |
+| POST   | `/login`    | public        | Issue token pair      |
+| POST   | `/refresh`  | public        | Rotate refresh token  |
+| POST   | `/logout`   | public        | Revoke refresh token  |
+| GET    | `/profile`  | authenticated | Current user info     |

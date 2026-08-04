@@ -5,14 +5,14 @@ work on top of the merged auth feature.
 
 ## Layout
 
-| Package / App      | Dir             | Notes |
-| ------------------ | --------------- | ----- |
-| `apps/api`         | `apps/api`      | NestJS 11 (CommonJS) REST API — global prefix `api/v1` (health excluded), `@/*` → `src/*` |
-| `apps/web`         | `apps/web`      | Next.js 16 + React 19 + Tailwind 4 (CSS-first via `@tailwindcss/postcss`), `@/*` → `./*` |
-| `@opero/config`    | `packages/config` | **Real workspace package** — Joi `envSchema`, `validateEnv`, `AppEnv` type, `DEFAULT_WEB_ORIGIN`/`DEFAULT_API_BASE_URL` |
-| `@opero/database`  | `packages/database` | Prisma 7 client + 6 RBAC models, barrel re-exports `PrismaClient`/`Prisma`/`PrismaPg` |
-| `packages/shared`  | `packages/shared` | Empty placeholder (no `package.json` — yarn skips) |
-| `packages/ui`      | `packages/ui`     | Empty placeholder |
+| Package / App     | Dir                 | Notes                                                                                                                   |
+| ----------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | `apps/api`          | NestJS 11 (CommonJS) REST API — global prefix `api/v1` (health excluded), `@/*` → `src/*`                               |
+| `apps/web`        | `apps/web`          | Next.js 16 + React 19 + Tailwind 4 (CSS-first via `@tailwindcss/postcss`), `@/*` → `./*`                                |
+| `@opero/config`   | `packages/config`   | **Real workspace package** — Joi `envSchema`, `validateEnv`, `AppEnv` type, `DEFAULT_WEB_ORIGIN`/`DEFAULT_API_BASE_URL` |
+| `@opero/database` | `packages/database` | Prisma 7 client + 6 RBAC models, barrel re-exports `PrismaClient`/`Prisma`/`PrismaPg`                                   |
+| `packages/shared` | `packages/shared`   | Empty placeholder (no `package.json` — yarn skips)                                                                      |
+| `packages/ui`     | `packages/ui`       | Empty placeholder                                                                                                       |
 
 ## Env flow
 

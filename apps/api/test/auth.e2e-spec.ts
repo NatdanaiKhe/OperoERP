@@ -4,8 +4,7 @@ process.env.NODE_ENV = 'test';
 process.env.PORT = '4001';
 process.env.DATABASE_URL =
   'postgresql://mock:mock@localhost:5432/mock?schema=public';
-process.env.JWT_SECRET =
-  'test-jwt-secret-at-least-32-characters-long-for-e2e';
+process.env.JWT_SECRET = 'test-jwt-secret-at-least-32-characters-long-for-e2e';
 process.env.JWT_EXPIRES_IN = '15m';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
 
@@ -30,48 +29,44 @@ function createMockPrisma() {
     user: {
       findUnique: jest
         .fn()
-        .mockImplementation(
-          (args: { where: Record<string, unknown> }) => {
-            const { where } = args;
-            if (where.id) {
-              return Promise.resolve(users.get(where.id as string) ?? null);
-            }
-            if (where.email) {
-              for (const u of users.values()) {
-                if (u.email === where.email) return Promise.resolve(u);
-              }
-              return Promise.resolve(null);
-            }
-            if (where.username) {
-              for (const u of users.values()) {
-                if (u.username === where.username) return Promise.resolve(u);
-              }
-              return Promise.resolve(null);
+        .mockImplementation((args: { where: Record<string, unknown> }) => {
+          const { where } = args;
+          if (where.id) {
+            return Promise.resolve(users.get(where.id as string) ?? null);
+          }
+          if (where.email) {
+            for (const u of users.values()) {
+              if (u.email === where.email) return Promise.resolve(u);
             }
             return Promise.resolve(null);
-          },
-        ),
+          }
+          if (where.username) {
+            for (const u of users.values()) {
+              if (u.username === where.username) return Promise.resolve(u);
+            }
+            return Promise.resolve(null);
+          }
+          return Promise.resolve(null);
+        }),
 
       create: jest
         .fn()
-        .mockImplementation(
-          (args: { data: Record<string, unknown> }) => {
-            const id = String(nextUserId++);
-            // Discard nested userRoles — RBAC connect is a side-effect we
-            // don't exercise here.  Include a mock userRoles array so the
-            // controller's `.map(ur => ur.role.name)` still works.
-            const data = { ...args.data };
-            delete data.userRoles;
-            const user = {
-              ...data,
-              id,
-              isActive: true,
-              userRoles: [{ role: { name: 'user' } }],
-            };
-            users.set(id, user);
-            return Promise.resolve(user);
-          },
-        ),
+        .mockImplementation((args: { data: Record<string, unknown> }) => {
+          const id = String(nextUserId++);
+          // Discard nested userRoles — RBAC connect is a side-effect we
+          // don't exercise here.  Include a mock userRoles array so the
+          // controller's `.map(ur => ur.role.name)` still works.
+          const data = { ...args.data };
+          delete data.userRoles;
+          const user = {
+            ...data,
+            id,
+            isActive: true,
+            userRoles: [{ role: { name: 'user' } }],
+          };
+          users.set(id, user);
+          return Promise.resolve(user);
+        }),
 
       update: jest
         .fn()
@@ -87,31 +82,27 @@ function createMockPrisma() {
     refreshToken: {
       findUnique: jest
         .fn()
-        .mockImplementation(
-          (args: { where: Record<string, unknown> }) => {
-            for (const t of refreshTokens.values()) {
-              if (
-                t.tokenHash === (args.where as { tokenHash: string }).tokenHash
-              ) {
-                // Embed user data for the refresh flow (refresh → login chain)
-                const user = users.get(t.userId as string);
-                return Promise.resolve({ ...t, user });
-              }
+        .mockImplementation((args: { where: Record<string, unknown> }) => {
+          for (const t of refreshTokens.values()) {
+            if (
+              t.tokenHash === (args.where as { tokenHash: string }).tokenHash
+            ) {
+              // Embed user data for the refresh flow (refresh → login chain)
+              const user = users.get(t.userId as string);
+              return Promise.resolve({ ...t, user });
             }
-            return Promise.resolve(null);
-          },
-        ),
+          }
+          return Promise.resolve(null);
+        }),
 
       create: jest
         .fn()
-        .mockImplementation(
-          (args: { data: Record<string, unknown> }) => {
-            const id = String(nextTokenId++);
-            const token = { ...args.data, id, revokedAt: null };
-            refreshTokens.set(id, token);
-            return Promise.resolve(token);
-          },
-        ),
+        .mockImplementation((args: { data: Record<string, unknown> }) => {
+          const id = String(nextTokenId++);
+          const token = { ...args.data, id, revokedAt: null };
+          refreshTokens.set(id, token);
+          return Promise.resolve(token);
+        }),
 
       updateMany: jest
         .fn()
@@ -255,9 +246,7 @@ describe('Auth (e2e)', () => {
   // 4b. Profile — without token → 401
   // -----------------------------------------------------------------------
   it('GET /api/v1/auth/profile — returns 401 without token', async () => {
-    await request(app.getHttpServer())
-      .get('/api/v1/auth/profile')
-      .expect(401);
+    await request(app.getHttpServer()).get('/api/v1/auth/profile').expect(401);
   });
 
   // -----------------------------------------------------------------------
@@ -280,9 +269,7 @@ describe('Auth (e2e)', () => {
 
     // Capture updated state.
     accessToken = res.body.accessToken;
-    const freshCookie = cookies?.find((c) =>
-      c.startsWith('refresh_token='),
-    );
+    const freshCookie = cookies?.find((c) => c.startsWith('refresh_token='));
     const newRefreshValue =
       freshCookie?.match(/refresh_token=([^;]+)/)?.[1] ?? '';
     // Refresh token value must be different (it's random hex).
