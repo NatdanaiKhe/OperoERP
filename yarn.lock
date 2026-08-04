@@ -4930,9 +4930,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "database@workspace:packages/database"
   dependencies:
+    "@opero/config": "workspace:*"
     "@prisma/adapter-pg": "npm:^7.9.1"
     "@prisma/client": "npm:^7.9.1"
     prisma: "npm:^7.9.1"
+    typescript: "npm:^5.7.3"
   languageName: unknown
   linkType: soft
 
