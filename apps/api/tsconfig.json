@@ -3,15 +3,14 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node",
-
     "declaration": true,
     "removeComments": true,
     "outDir": "./dist",
-
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }
