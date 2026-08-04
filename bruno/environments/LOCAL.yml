@@ -1,0 +1,16 @@
+name: LOCAL
+variables:
+  - name: baseUrl
+    value: http://localhost:4000/api/v1
+  - name: username
+    value: johndoe
+  - name: email
+    value: john.doe@example.com
+  - name: password
+    value: SecurePassword123!
+  - name: firstName
+    value: John
+  - name: lastName
+    value: Doe
+  - name: accessToken
+    value: ''
