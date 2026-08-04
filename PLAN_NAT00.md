@@ -36,13 +36,13 @@ Starting state (ground truth, accepted as-is):
 
 ## Out of Scope (explicitly dropped)
 
-| Item | Reason |
-| --- | --- |
-| `apps/web/**` working-tree UI/style edits | Not recoverable from git; prior inventory confirmed gone. |
-| `REQUIREMENT.md` modifications | Not recoverable from git; prior inventory confirmed gone. |
-| The original (lost) `AGENTS.md` / `LOG.md` / `PLAN.md` / `PLAN_AUTH.md` / `.env.example` files | Only ever existed as untracked/gone; rebuilt fresh in commit 5. |
-| `apps/api/test/app.e2e-spec.ts` health test | Superseded by commit 7's real auth e2e. |
-| Any `NEXT_PUBLIC_API_URL` in `@opero/config` | Web's public env var lives elsewhere (see `DEFERRED.md`); intentionally excluded. The `@opero/config` canonical schema is the **6** api/database vars, matching the auth-branch `apps/api/src/config/env.schema.ts`. |
+| Item                                                                                           | Reason                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/**` working-tree UI/style edits                                                      | Not recoverable from git; prior inventory confirmed gone.                                                                                                                                                            |
+| `REQUIREMENT.md` modifications                                                                 | Not recoverable from git; prior inventory confirmed gone.                                                                                                                                                            |
+| The original (lost) `AGENTS.md` / `LOG.md` / `PLAN.md` / `PLAN_AUTH.md` / `.env.example` files | Only ever existed as untracked/gone; rebuilt fresh in commit 5.                                                                                                                                                      |
+| `apps/api/test/app.e2e-spec.ts` health test                                                    | Superseded by commit 7's real auth e2e.                                                                                                                                                                              |
+| Any `NEXT_PUBLIC_API_URL` in `@opero/config`                                                   | Web's public env var lives elsewhere (see `DEFERRED.md`); intentionally excluded. The `@opero/config` canonical schema is the **6** api/database vars, matching the auth-branch `apps/api/src/config/env.schema.ts`. |
 
 > Note: `DEFERRED.md` describes `.env.example` as a "7-var reference". That line
 > is **stale** — it predates the decision to keep `NEXT_PUBLIC_API_URL` out of
@@ -338,6 +338,7 @@ Pass = typecheck/lint/unit tests green with joi/dotenv removed from api's direct
 `PrismaService` mock. This replaces the deleted `app.e2e-spec.ts` health test.
 
 **Depends on:** Commits 1-6 (full post-cleanup state). Specifically:
+
 - The `@/` path alias and `database` workspace import must resolve under the
   e2e jest config.
 - `LoggingInterceptor` (commit 4) is wired globally; the e2e `AppModule`
@@ -493,7 +494,7 @@ verification would newly fail.
   `apps/api/.env.example` on `main`. Recorded above in Out of Scope and in
   Commit 1's schema content note.
 - **`packages/config/tsconfig.json` uses `module: commonjs`/`moduleResolution:
-  node`** — NOT inherited ESNext/Bundler from root. The brief's "matches the
+node`** — NOT inherited ESNext/Bundler from root. The brief's "matches the
   database package" wording is imprecise (database's tsconfig actually inherits
   ESNext/Bundler). The config package needs CJS output to be `require()`-able by
   the CJS api at runtime. Documented in Commit 1.
