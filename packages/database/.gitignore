@@ -2,7 +2,7 @@ node_modules
 # Keep environment variables out of version control
 .env
 
-/generated/prisma
+/src/generated/prisma
 
 # Downloaded skills (regenerable from skills-lock.json)
 .agents/skills/

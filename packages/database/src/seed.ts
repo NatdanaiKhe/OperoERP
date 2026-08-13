@@ -2,11 +2,12 @@
  * Database seed — sets up the RBAC roles and permissions.
  *
  * Idempotent: safe to run multiple times (upserts by unique name).
+ * Compiled to dist/seed.js by the package build (`prisma generate && tsc`).
  * Run with: `yarn workspace database db:seed` (from repo root)
  *   or:     `npx prisma db seed` (from packages/database)
  */
 import 'dotenv/config';
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from './generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { validateEnv } from '@opero/config';
 
