@@ -5,14 +5,21 @@ info:
 
 http:
   method: POST
-  url: '{{baseUrl}}/auth/refresh'
+  url: "{{baseUrl}}/auth/refresh"
   auth: inherit
 
-  script:
-    postResponse: |-
-      if (res.body && res.body.accessToken) {
-        bru.setEnvVar("accessToken", res.body.accessToken);
-      }
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const data = res.getBody();
+        const accessToken = data.accessToken
+        if (accessToken) {
+          bru.setEnvVar("accessToken", accessToken);
+          console.log("Access token saved to environment");
+        } else {
+          throw new Error("accessToken not found in login response");
+        }
 
 settings:
   encodeUrl: true
