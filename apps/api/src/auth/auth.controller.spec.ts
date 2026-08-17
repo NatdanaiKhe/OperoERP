@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from '@/auth/auth.controller';
 import { AuthService } from '@/auth/auth.service';
+import type { Request, Response } from 'express';
+
+const reqMock = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } } as
+  | unknown
+  | Request;
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -34,12 +39,15 @@ describe('AuthController', () => {
   };
 
   const authServiceMock = {
-    register: jest.fn(),
+    register: jest.fn().mockResolvedValue(undefined),
     validateUser: jest.fn(),
     login: jest.fn(),
     refresh: jest.fn(),
-    logout: jest.fn(),
-    updateLastLogin: jest.fn(),
+    logout: jest.fn().mockResolvedValue(undefined),
+    updateLastLogin: jest.fn().mockResolvedValue(undefined),
+    profile: jest.fn(),
+    listUsers: jest.fn(),
+    changePassword: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -60,17 +68,21 @@ describe('AuthController', () => {
   });
 
   it('registers a user', async () => {
-    await controller.register({
-      username: 'user',
-      email: 'user@example.com',
-      password: 'password123',
-    });
+    await controller.register(
+      {
+        username: 'user',
+        email: 'user@example.com',
+        password: 'password123',
+      },
+      reqMock,
+    );
     expect(authServiceMock.register).toHaveBeenCalledWith(
       'user',
       'user@example.com',
       'password123',
       undefined,
       undefined,
+      reqMock,
     );
   });
 
@@ -84,14 +96,44 @@ describe('AuthController', () => {
       refreshToken: 'rt',
     });
 
-    const res = { cookie: jest.fn() };
+    const res = { cookie: jest.fn() } as unknown as Response;
     const result = await controller.login(
       { email: 'user@example.com', password: 'password123' },
-      res as never,
+      reqMock,
+      res,
     );
 
     expect(result).toEqual({ accessToken: 'at' });
     expect(res.cookie).toHaveBeenCalled();
     expect(authServiceMock.updateLastLogin).toHaveBeenCalledWith('user-1');
+  });
+
+  it('lists users (admin only)', async () => {
+    authServiceMock.listUsers.mockResolvedValue([
+      { id: 'u1', username: 'admin', email: 'a@b.c', roles: ['admin'] },
+    ]);
+    const result = await controller.listUsers();
+    expect(authServiceMock.listUsers).toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+  });
+
+  it('changes password and returns success message', async () => {
+    const result = await controller.changePassword(
+      { userId: 'u1', roles: ['user'] },
+      {
+        currentPassword: 'oldpass123',
+        newPassword: 'newpass123',
+      },
+      reqMock,
+    );
+    expect(authServiceMock.changePassword).toHaveBeenCalledWith(
+      'u1',
+      {
+        currentPassword: 'oldpass123',
+        newPassword: 'newpass123',
+      },
+      reqMock,
+    );
+    expect(result).toEqual({ message: 'Password changed successfully' });
   });
 });
