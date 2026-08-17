@@ -2,8 +2,17 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcrypt from 'bcrypt';
 import { AuthService } from '@/auth/auth.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { AuditLogService } from '@/audit/audit-log.service';
+import type { Request } from 'express';
+
+jest.mock('bcrypt');
+
+const reqMock = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } } as
+  | unknown
+  | Request;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -11,6 +20,7 @@ describe('AuthService', () => {
   const prismaMock = {
     user: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -18,6 +28,9 @@ describe('AuthService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
+    },
+    auditLog: {
+      create: jest.fn().mockResolvedValue({}),
     },
   };
 
@@ -42,6 +55,10 @@ describe('AuthService', () => {
     }),
   };
 
+  const auditLogMock = {
+    log: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
@@ -50,6 +67,7 @@ describe('AuthService', () => {
         { provide: ConfigService, useValue: configServiceMock },
         { provide: JwtService, useValue: { sign: jest.fn(() => 'token') } },
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AuditLogService, useValue: auditLogMock },
       ],
     }).compile();
 
@@ -105,5 +123,47 @@ describe('AuthService', () => {
       where: { userId: 'user-1', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  // --- changePassword ---
+
+  it('changes password when current password is correct', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'u1',
+      password: 'old-hash',
+    });
+    (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
+    (bcrypt.hash as jest.Mock).mockResolvedValueOnce('new-hash');
+    prismaMock.user.update.mockResolvedValue({});
+    prismaMock.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.changePassword('u1', {
+      currentPassword: 'oldpass123',
+      newPassword: 'newpass123',
+    });
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { password: 'new-hash' },
+    });
+    expect(auditLogMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1' }),
+    );
+  });
+
+  it('throws UnauthorizedException when current password is wrong', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'u1',
+      password: 'old-hash',
+    });
+    (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
+
+    await expect(
+      service.changePassword('u1', {
+        currentPassword: 'wrongpass',
+        newPassword: 'newpass123',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 });
