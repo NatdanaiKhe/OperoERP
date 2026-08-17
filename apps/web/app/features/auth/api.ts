@@ -17,6 +17,13 @@ export async function logout(): Promise<void> {
   await apiFetch('/auth/logout', { method: 'POST', skipAuth: true });
 }
 
+export async function refresh(): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>('/auth/refresh', {
+    method: 'POST',
+    skipAuth: true,
+  });
+}
+
 export async function fetchProfile(): Promise<Profile> {
   return apiFetch<Profile>('/auth/profile');
 }
