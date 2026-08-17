@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { AuthTemplate } from '@/app/components/templates/auth-template';
 import { Card } from '@/app/components/atoms/card';
 import { TextLink } from '@/app/components/atoms/text-link';
+import { Logo } from '@/app/components/atoms/logo';
 import { LoginForm } from '@/app/components/organisms/login-form';
 
 export const metadata: Metadata = {
@@ -21,15 +22,13 @@ export default function LoginPage() {
       }
     >
       <Card className="p-8">
-        <div className="mb-6 text-center">
-          <span className="text-2xl font-bold tracking-tight text-foreground">
-            Opero<span className="text-primary">ERP</span>
-          </span>
+        <div className="mb-6 flex justify-center">
+          <Logo size="lg" showText={false} />
         </div>
-        <h1 className="text-headline-md mb-2 text-foreground">
+        <h1 className="text-center text-2xl font-semibold text-foreground">
           Sign in to your account
         </h1>
-        <p className="text-body-md mb-6 text-muted-foreground">
+        <p className="mb-6 mt-1 text-center text-sm text-muted-foreground">
           Enter your work email and password to continue
         </p>
         <LoginForm />

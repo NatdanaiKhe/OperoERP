@@ -2,15 +2,22 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/features/auth/hooks';
+import { useAuth, useRefreshAuth } from '@/app/features/auth/hooks';
 
 export default function RootPage() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { isFetching } = useRefreshAuth();
+
+  const ready = !isFetching && !accessToken;
 
   useEffect(() => {
-    router.replace(accessToken ? '/dashboard' : '/login');
-  }, [accessToken, router]);
+    if (accessToken) {
+      router.replace('/dashboard');
+    } else if (ready) {
+      router.replace('/login');
+    }
+  }, [accessToken, ready, router]);
 
   return null;
 }
