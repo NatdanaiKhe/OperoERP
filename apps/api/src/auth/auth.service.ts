@@ -146,7 +146,7 @@ export class AuthService {
   }
 
   async login(userId: string, roles: string[], req?: Request) {
-    const tokens = await this.generateTokens(userId, roles);
+    const tokens = await this.generateAccessAndRefreshToken(userId, roles);
     await this.auditLog.log({
       action: AuditAction.LOGIN_SUCCESS,
       userId,
@@ -204,7 +204,10 @@ export class AuthService {
     }
 
     const roles = stored.user.userRoles.map((ur) => ur.role.name);
-    const tokens = await this.generateTokens(stored.userId, roles);
+    const tokens = await this.generateAccessAndRefreshToken(
+      stored.userId,
+      roles,
+    );
 
     await this.auditLog.log({
       action: AuditAction.REFRESH,
@@ -289,9 +292,9 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  private async generateTokens(userId: string, roles: string[]) {
+  private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
     const accessToken = this.generateAccessToken({ userId, roles });
-    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const refreshToken = await this.generateToken(40);
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
@@ -318,5 +321,10 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: { userId, tokenHash, expiresAt },
     });
+  }
+
+  private async generateToken(size?: number) {
+    const token = crypto.randomBytes(size ?? 32).toString('hex');
+    return token;
   }
 }
