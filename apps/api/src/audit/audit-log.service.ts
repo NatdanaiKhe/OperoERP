@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request } from 'express';
+import { Prisma } from 'database';
 import { PrismaService } from '@/prisma/prisma.service';
 
 export enum AuditAction {
@@ -37,7 +38,7 @@ export class AuditLogService {
           ipAddress: req?.ip ?? null,
           userAgent:
             (req?.headers?.['user-agent'] as string | undefined) ?? null,
-          metadata: (metadata as never) ?? undefined,
+          metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
         },
       });
     } catch (err) {

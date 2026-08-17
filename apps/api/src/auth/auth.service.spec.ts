@@ -29,9 +29,6 @@ describe('AuthService', () => {
       create: jest.fn(),
       updateMany: jest.fn(),
     },
-    auditLog: {
-      create: jest.fn().mockResolvedValue({}),
-    },
   };
 
   const configServiceMock = {
