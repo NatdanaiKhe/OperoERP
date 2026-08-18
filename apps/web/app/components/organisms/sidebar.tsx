@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   Package,
   ShoppingCart,
   SquareCheck,
@@ -19,6 +20,7 @@ import { cn } from '@/app/lib/utils';
 
 const NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'User Management', href: '/dashboard/users', icon: UserCog },
   { label: 'Customers', href: '/dashboard/customers', icon: Users },
   { label: 'Products', href: '/dashboard/products', icon: Package },
   { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart },
