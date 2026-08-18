@@ -1,17 +1,30 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserPlus, Search } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { UserTable } from '@/app/components/organisms/user-table';
 import { InviteDialog } from '@/app/components/organisms/invite-dialog';
 import { useUsers } from '@/app/features/users/hooks';
+import { useProfile } from '@/app/features/auth/hooks';
 
 export default function UsersPage() {
   const { data: users, isLoading } = useUsers();
+  const { data: profile } = useProfile();
+  const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  const menuConfig = profile?.menuConfig ?? [];
+  const canAccess = menuConfig.includes('user_management');
+
+  useEffect(() => {
+    if (profile && !canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [profile, canAccess, router]);
 
   const filtered = useMemo(() => {
     if (!users) return [];
@@ -23,6 +36,10 @@ export default function UsersPage() {
         .some((v) => v!.toLowerCase().includes(q)),
     );
   }, [users, search]);
+
+  if (profile && !canAccess) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

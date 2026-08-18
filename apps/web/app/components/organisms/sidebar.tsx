@@ -16,16 +16,17 @@ import {
 import { Button } from '@/app/components/ui/button';
 import { NavItem } from '@/app/components/molecules/nav-item';
 import { Logo } from '@/app/components/atoms/logo';
+import { useProfile } from '@/app/features/auth/hooks';
 import { cn } from '@/app/lib/utils';
 
-const NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'User Management', href: '/dashboard/users', icon: UserCog },
-  { label: 'Customers', href: '/dashboard/customers', icon: Users },
-  { label: 'Products', href: '/dashboard/products', icon: Package },
-  { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart },
-  { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck },
-  { label: 'Reports', href: '/dashboard/reports', icon: FileText },
+const ALL_NAV = [
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, menuKey: 'dashboard' },
+  { label: 'User Management', href: '/dashboard/users', icon: UserCog, menuKey: 'user_management' },
+  { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
+  { label: 'Products', href: '/dashboard/products', icon: Package, menuKey: 'products' },
+  { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart, menuKey: 'sales' },
+  { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck, menuKey: 'approvals' },
+  { label: 'Reports', href: '/dashboard/reports', icon: FileText, menuKey: 'reports' },
 ] as const;
 
 interface SidebarProps {
@@ -34,6 +35,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onNavClick }: SidebarProps) {
+  const { data: profile } = useProfile();
+  const menuConfig = profile?.menuConfig ?? [];
+  const showQuickAction = menuConfig.includes('quick_action');
+
+  const visibleNav = ALL_NAV.filter((item) => menuConfig.includes(item.menuKey));
+
   return (
     <aside
       className={cn(
@@ -42,14 +49,12 @@ export function Sidebar({ open, onNavClick }: SidebarProps) {
         'md:translate-x-0',
       )}
     >
-      {/* Logo */}
       <div className="flex h-14 items-center border-b border-border/30 px-5">
         <Logo size="sm" />
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {NAV.map(({ label, href, icon: Icon }) => (
+        {visibleNav.map(({ label, href, icon: Icon }) => (
           <NavItem
             key={href}
             href={href}
@@ -60,18 +65,18 @@ export function Sidebar({ open, onNavClick }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Quick Action */}
-      <div className="px-3 pb-4">
-        {/* ponytail: link target is a placeholder route, wire to real quick-action flow when defined */}
-        <Button asChild className="w-full">
-          <Link href="/dashboard/quick-action">
-            <Plus className="h-4 w-4" />
-            Quick Action
-          </Link>
-        </Button>
-      </div>
+      {showQuickAction && (
+        <div className="px-3 pb-4">
+          <Button asChild className="w-full">
+            <Link href="/dashboard/quick-action">
+              <Plus className="h-4 w-4" />
+              Quick Action
+            </Link>
+          </Button>
+        </div>
+      )}
 
-      {/* Footer */}
+      {/* Settings + Support always visible */}
       <div className="space-y-1 border-t border-border/30 px-3 py-4">
         <NavItem
           href="/dashboard/settings"

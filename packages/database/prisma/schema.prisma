@@ -41,6 +41,7 @@ model Role {
   updatedAt       DateTime         @updatedAt @map("updated_at")
   userRoles       UserRole[]
   rolePermissions RolePermission[]
+  menuVisibility  MenuVisibility[]
 
   @@map("roles")
 }
@@ -106,7 +107,7 @@ model AuditLog {
   metadata  Json?
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([action])
@@ -127,4 +128,18 @@ model Token {
   @@index([userId])
   @@index([type])
   @@map("tokens")
+}
+
+model MenuVisibility {
+  id        String   @id @default(cuid())
+  roleId    String   @map("role_id")
+  menuKey   String   @map("menu_key")
+  visible   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, menuKey])
+  @@index([roleId])
+  @@map("menu_visibility")
 }
