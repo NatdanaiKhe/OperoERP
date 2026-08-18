@@ -9,9 +9,17 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
-  imports: [AppConfigModule, PrismaModule, AuditModule, AuthModule, HealthModule],
+  imports: [
+    AppConfigModule,
+    PrismaModule,
+    AuditModule,
+    AuthModule,
+    HealthModule,
+    NotificationModule,
+  ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

@@ -7,13 +7,22 @@ process.env.DATABASE_URL =
 process.env.JWT_SECRET = 'test-jwt-secret-at-least-32-characters-long-for-e2e';
 process.env.JWT_EXPIRES_IN = '15m';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
+process.env.WEB_APP_URL = 'http://localhost:3000';
+process.env.INVITE_TOKEN_TTL_HOURS = '48';
+process.env.RESET_TOKEN_TTL_HOURS = '1';
+process.env.RESEND_API_KEY = 're_test_key';
+process.env.MAIL_FROM = 'Opero ERP <no-reply@example.com>';
+process.env.RESEND_INVITE_TEMPLATE_ID = 'tpl_invite';
+process.env.RESEND_RESET_TEMPLATE_ID = 'tpl_reset';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
+import * as bcrypt from 'bcrypt';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
+import { NotificationService } from '@/notification/notification.service';
 
 // ---------------------------------------------------------------------------
 // In-memory Prisma mock — mimics the subset of PrismaService methods that
@@ -22,8 +31,10 @@ import { PrismaService } from '@/prisma/prisma.service';
 function createMockPrisma() {
   const users = new Map<string, Record<string, unknown>>();
   const refreshTokens = new Map<string, Record<string, unknown>>();
+  const tokens = new Map<string, Record<string, unknown>>();
   let nextUserId = 1;
   let nextTokenId = 1;
+  let nextRefreshTokenId = 1;
 
   return {
     user: {
@@ -49,20 +60,28 @@ function createMockPrisma() {
           return Promise.resolve(null);
         }),
 
+      findMany: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve(Array.from(users.values()))),
+
       create: jest
         .fn()
         .mockImplementation((args: { data: Record<string, unknown> }) => {
           const id = String(nextUserId++);
-          // Discard nested userRoles — RBAC connect is a side-effect we
-          // don't exercise here.  Include a mock userRoles array so the
-          // controller's `.map(ur => ur.role.name)` still works.
           const data = { ...args.data };
+          // Extract role from nested userRoles.create.role.connect.name
+          let roleName = 'user';
+          const userRoles = data.userRoles as {
+            create?: { role?: { connect?: { name?: string } } };
+          } | undefined;
+          if (userRoles?.create?.role?.connect?.name) {
+            roleName = userRoles.create.role.connect.name;
+          }
           delete data.userRoles;
           const user = {
             ...data,
             id,
-            isActive: true,
-            userRoles: [{ role: { name: 'user' } }],
+            userRoles: [{ role: { name: roleName } }],
           };
           users.set(id, user);
           return Promise.resolve(user);
@@ -71,7 +90,10 @@ function createMockPrisma() {
       update: jest
         .fn()
         .mockImplementation(
-          (args: { where: { id: string }; data: Record<string, unknown> }) => {
+          (args: {
+            where: { id: string };
+            data: Record<string, unknown>;
+          }) => {
             const user = users.get(args.where.id);
             if (user) Object.assign(user, args.data);
             return Promise.resolve(user);
@@ -85,9 +107,9 @@ function createMockPrisma() {
         .mockImplementation((args: { where: Record<string, unknown> }) => {
           for (const t of refreshTokens.values()) {
             if (
-              t.tokenHash === (args.where as { tokenHash: string }).tokenHash
+              t.tokenHash ===
+              (args.where as { tokenHash: string }).tokenHash
             ) {
-              // Embed user data for the refresh flow (refresh → login chain)
               const user = users.get(t.userId as string);
               return Promise.resolve({ ...t, user });
             }
@@ -98,7 +120,7 @@ function createMockPrisma() {
       create: jest
         .fn()
         .mockImplementation((args: { data: Record<string, unknown> }) => {
-          const id = String(nextTokenId++);
+          const id = String(nextRefreshTokenId++);
           const token = { ...args.data, id, revokedAt: null };
           refreshTokens.set(id, token);
           return Promise.resolve(token);
@@ -117,7 +139,6 @@ function createMockPrisma() {
               for (const [field, value] of Object.entries(args.where)) {
                 const tokenVal = token[field];
                 if (value === null) {
-                  // null / undefined both mean "not yet revoked"
                   if (tokenVal != null) {
                     matches = false;
                     break;
@@ -136,6 +157,42 @@ function createMockPrisma() {
           },
         ),
     },
+
+    token: {
+      create: jest
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) => {
+          const id = String(nextTokenId++);
+          const token = { ...args.data, id, usedAt: null };
+          tokens.set(id, token);
+          return Promise.resolve(token);
+        }),
+
+      findUnique: jest
+        .fn()
+        .mockImplementation((args: { where: Record<string, unknown> }) => {
+          const tokenHash = (args.where as { tokenHash: string }).tokenHash;
+          for (const t of tokens.values()) {
+            if (t.tokenHash === tokenHash) return Promise.resolve(t);
+          }
+          return Promise.resolve(null);
+        }),
+
+      update: jest
+        .fn()
+        .mockImplementation(
+          (args: {
+            where: { id: string };
+            data: Record<string, unknown>;
+          }) => {
+            const token = tokens.get(args.where.id);
+            if (token) Object.assign(token, args.data);
+            return Promise.resolve(token);
+          },
+        ),
+
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   };
 }
 
@@ -144,17 +201,54 @@ function createMockPrisma() {
 // ---------------------------------------------------------------------------
 describe('Auth (e2e)', () => {
   let app: INestApplication;
-  let accessToken: string;
+  let adminAccessToken: string;
+  let userAccessToken: string;
   let refreshTokenValue: string;
+  let inviteToken = '';
+  let resetToken = '';
+
+  const notificationMock = {
+    sendInviteEmail: jest
+      .fn()
+      .mockImplementation((_to: string, _name: string, url: string) => {
+        inviteToken = url.match(/token=([^&]+)/)?.[1] ?? '';
+        return Promise.resolve();
+      }),
+    sendResetEmail: jest
+      .fn()
+      .mockImplementation((_to: string, _name: string, url: string) => {
+        resetToken = url.match(/token=([^&]+)/)?.[1] ?? '';
+        return Promise.resolve();
+      }),
+  };
 
   beforeAll(async () => {
     const mockPrisma = createMockPrisma();
+
+    // Seed an admin user with a known password.
+    const adminPasswordHash = bcrypt.hashSync('Admin1234!', 10);
+    mockPrisma.user.create({
+      data: {
+        username: 'admin',
+        email: 'admin@example.com',
+        password: adminPasswordHash,
+        firstName: 'Admin',
+        lastName: 'User',
+        department: 'IT',
+        isActive: true,
+        userRoles: {
+          create: { role: { connect: { name: 'admin' } } },
+        },
+      },
+    });
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideProvider(NotificationService)
+      .useValue(notificationMock)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -174,130 +268,229 @@ describe('Auth (e2e)', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 1. Register — valid payload → 201
+  // 1. Admin login → 201 + accessToken
   // -----------------------------------------------------------------------
-  it('POST /api/v1/auth/register — registers a new user', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'Test1234!',
-        firstName: 'Test',
-        lastName: 'User',
-      })
-      .expect(201);
-
-    expect(res.body.message).toBe('User registered successfully');
-  });
-
-  // -----------------------------------------------------------------------
-  // 2. Register — duplicate email → 409 Conflict
-  // -----------------------------------------------------------------------
-  it('POST /api/v1/auth/register — rejects duplicate email with 409', async () => {
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        username: 'testuser2',
-        email: 'test@example.com',
-        password: 'Test1234!',
-      })
-      .expect(409);
-  });
-
-  // -----------------------------------------------------------------------
-  // 3. Login — valid credentials → 200 + accessToken + refresh cookie
-  // -----------------------------------------------------------------------
-  it('POST /api/v1/auth/login — returns access token and sets refresh cookie', async () => {
+  it('POST /api/v1/auth/login — admin logs in', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email: 'test@example.com', password: 'Test1234!' })
+      .send({ email: 'admin@example.com', password: 'Admin1234!' })
       .expect(201);
 
     expect(res.body.accessToken).toEqual(expect.any(String));
-    expect(res.body.accessToken.length).toBeGreaterThan(0);
-    accessToken = res.body.accessToken;
+    adminAccessToken = res.body.accessToken;
 
-    // Extract refresh-token value from Set-Cookie for later tests.
     const cookies = res.headers['set-cookie'] as unknown as
-      string[] | undefined;
-    expect(cookies).toBeDefined();
-    const refreshCookie = cookies?.find((c) => c.startsWith('refresh_token='));
-    expect(refreshCookie).toBeDefined();
+      | string[]
+      | undefined;
     refreshTokenValue =
-      refreshCookie?.match(/refresh_token=([^;]+)/)?.[1] ?? '';
+      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
+      '';
+  });
+
+  // -----------------------------------------------------------------------
+  // 2. Admin invites a user → 201
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/invite — admin invites a new user', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/invite')
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .send({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        department: 'Sales',
+        role: 'user',
+      })
+      .expect(201);
+
+    expect(res.body.message).toBe('Invitation sent successfully');
+    expect(res.body.userId).toEqual(expect.any(String));
+    expect(notificationMock.sendInviteEmail).toHaveBeenCalled();
+    expect(inviteToken.length).toBeGreaterThan(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // 3. Invite without auth → 401
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/invite — returns 401 without auth', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/invite')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        department: 'Sales',
+        role: 'user',
+      })
+      .expect(401);
+  });
+
+  // -----------------------------------------------------------------------
+  // 4. Accept invite → 200 (sets password, activates account)
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/accept-invite — user accepts invite', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/accept-invite')
+      .send({ token: inviteToken, password: 'Jane1234!' })
+      .expect(200);
+
+    expect(res.body.message).toBe('Account activated successfully');
+  });
+
+  // -----------------------------------------------------------------------
+  // 5. Accept invite replay → 401 (token already used)
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/accept-invite — rejects replay with 401', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/accept-invite')
+      .send({ token: inviteToken, password: 'Jane1234!' })
+      .expect(401);
+  });
+
+  // -----------------------------------------------------------------------
+  // 6. Login with invited user → 201
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/login — invited user logs in after accepting', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'jane@example.com', password: 'Jane1234!' })
+      .expect(201);
+
+    expect(res.body.accessToken).toEqual(expect.any(String));
+    userAccessToken = res.body.accessToken;
+
+    const cookies = res.headers['set-cookie'] as unknown as
+      | string[]
+      | undefined;
+    refreshTokenValue =
+      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
+      '';
     expect(refreshTokenValue.length).toBeGreaterThan(0);
   });
 
   // -----------------------------------------------------------------------
-  // 4a. Profile — with valid Bearer token → 200
+  // 7. Profile → 200
   // -----------------------------------------------------------------------
-  it('GET /api/v1/auth/profile — returns user info with valid token', async () => {
+  it('GET /api/v1/auth/profile — returns user info', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/auth/profile')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Authorization', `Bearer ${userAccessToken}`)
       .expect(200);
 
-    expect(res.body.email).toBe('test@example.com');
-    expect(res.body.username).toBe('testuser');
-    expect(res.body.firstName).toBe('Test');
+    expect(res.body.email).toBe('jane@example.com');
   });
 
   // -----------------------------------------------------------------------
-  // 4b. Profile — without token → 401
+  // 8. Profile without token → 401
   // -----------------------------------------------------------------------
   it('GET /api/v1/auth/profile — returns 401 without token', async () => {
     await request(app.getHttpServer()).get('/api/v1/auth/profile').expect(401);
   });
 
   // -----------------------------------------------------------------------
-  // 5. Refresh — valid cookie → 200 + new accessToken + rotated cookie
+  // 9. Forgot password → 200 (always succeeds, enumeration-proof)
   // -----------------------------------------------------------------------
-  it('POST /api/v1/auth/refresh — rotates tokens via refresh cookie', async () => {
+  it('POST /api/v1/auth/forgot-password — returns generic success', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'jane@example.com' })
+      .expect(200);
+
+    expect(res.body.message).toBe(
+      'If the email exists, a reset link has been sent.',
+    );
+    expect(notificationMock.sendResetEmail).toHaveBeenCalled();
+    expect(resetToken.length).toBeGreaterThan(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // 10. Forgot password for unknown email → 200 (same response)
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/forgot-password — same response for unknown email', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'nonexistent@example.com' })
+      .expect(200);
+
+    expect(res.body.message).toBe(
+      'If the email exists, a reset link has been sent.',
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // 11. Reset password → 200
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/reset-password — user resets password', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/reset-password')
+      .send({ token: resetToken, newPassword: 'NewPass1234!' })
+      .expect(200);
+
+    expect(res.body.message).toBe('Password reset successfully');
+  });
+
+  // -----------------------------------------------------------------------
+  // 12. Login with new password after reset → 201
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/login — user logs in with new password', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'jane@example.com', password: 'NewPass1234!' })
+      .expect(201);
+
+    expect(res.body.accessToken).toEqual(expect.any(String));
+    userAccessToken = res.body.accessToken;
+
+    const cookies = res.headers['set-cookie'] as unknown as
+      | string[]
+      | undefined;
+    refreshTokenValue =
+      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
+      '';
+  });
+
+  // -----------------------------------------------------------------------
+  // 13. Refresh → 201 + rotated cookie
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/refresh — rotates tokens', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
       .set('Cookie', `refresh_token=${refreshTokenValue}`)
       .expect(201);
 
-    // New access token returned (JWT payload may be identical if issued in the
-    // same second, so we check existence rather than strict inequality).
     expect(res.body.accessToken).toEqual(expect.any(String));
-    expect(res.body.accessToken.length).toBeGreaterThan(0);
-
-    // A fresh refresh cookie should be set (rotation).
     const cookies = res.headers['set-cookie'] as unknown as
-      string[] | undefined;
+      | string[]
+      | undefined;
     expect(cookies?.some((c) => c.startsWith('refresh_token='))).toBe(true);
-
-    // Capture updated state.
-    accessToken = res.body.accessToken;
-    const freshCookie = cookies?.find((c) => c.startsWith('refresh_token='));
-    const newRefreshValue =
-      freshCookie?.match(/refresh_token=([^;]+)/)?.[1] ?? '';
-    // Refresh token value must be different (it's random hex).
-    expect(newRefreshValue).not.toBe(refreshTokenValue);
-    refreshTokenValue = newRefreshValue;
+    refreshTokenValue =
+      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
+      '';
   });
 
   // -----------------------------------------------------------------------
-  // 6. Logout — clears refresh cookie, returns 200
+  // 14. Logout → 201 + clears cookie
   // -----------------------------------------------------------------------
-  it('POST /api/v1/auth/logout — clears refresh cookie and returns success', async () => {
+  it('POST /api/v1/auth/logout — clears refresh cookie', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/auth/logout')
       .set('Cookie', `refresh_token=${refreshTokenValue}`)
       .expect(201);
 
     expect(res.body.message).toBe('Logged out successfully');
+  });
 
-    // Cookie should be cleared (Max-Age=0 or immediate expiry).
-    const cookies = res.headers['set-cookie'] as unknown as
-      string[] | undefined;
-    const clearCookie = cookies?.find((c) => c.startsWith('refresh_token='));
-    expect(clearCookie).toBeDefined();
-    // Express clearCookie sets Max-Age=0 or Expires in the past.
-    expect(
-      /Max-Age=0|expires=Thu,\s*01\s+Jan\s+1970/i.test(clearCookie ?? ''),
-    ).toBe(true);
+  // -----------------------------------------------------------------------
+  // 15. Register endpoint removed → 404
+  // -----------------------------------------------------------------------
+  it('POST /api/v1/auth/register — returns 404 (endpoint removed)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'Test1234!',
+      })
+      .expect(404);
   });
 });

@@ -1,9 +1,20 @@
-import { Body, Controller, Post, Req, Res, Get } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { InviteDto } from './dto/invite.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
   CurrentUser,
@@ -36,18 +47,35 @@ export class AuthController {
     return this.authService.listUsers();
   }
 
+  @Post('invite')
+  @Roles('admin')
+  async invite(@Body() dto: InviteDto, @Req() req: Request) {
+    const { userId } = await this.authService.invite(dto, req);
+    return { message: 'Invitation sent successfully', userId };
+  }
+
   @Public()
-  @Post('register')
-  async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    await this.authService.register(
-      dto.username,
-      dto.email,
-      dto.password,
-      dto.firstName,
-      dto.lastName,
-      req,
-    );
-    return { message: 'User registered successfully' };
+  @Post('accept-invite')
+  @HttpCode(200)
+  async acceptInvite(@Body() dto: AcceptInviteDto, @Req() req: Request) {
+    await this.authService.acceptInvite(dto, req);
+    return { message: 'Account activated successfully' };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    await this.authService.forgotPassword(dto.email, req);
+    return { message: 'If the email exists, a reset link has been sent.' };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    await this.authService.resetPassword(dto, req);
+    return { message: 'Password reset successfully' };
   }
 
   @Public()
