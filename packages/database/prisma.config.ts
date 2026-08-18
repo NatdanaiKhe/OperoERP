@@ -10,7 +10,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'ts-node prisma/seed.ts',
+    seed: 'node dist/seed.js',
   },
   datasource: {
     url: appEnv.DATABASE_URL,

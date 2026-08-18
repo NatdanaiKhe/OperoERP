@@ -2,43 +2,82 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "db:generate": {
-      "dependsOn": ["@opero/config#build"],
-      "outputs": ["node_modules/.prisma/client/**"]
+      "dependsOn": [
+        "@opero/config#build"
+      ],
+      "outputs": [
+        "node_modules/.prisma/client/**"
+      ]
     },
     "db:migrate": {
       "cache": false,
-      "env": ["DATABASE_URL"],
-      "dependsOn": ["@opero/config#build"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "dependsOn": [
+        "@opero/config#build"
+      ]
     },
     "db:migrate-dev": {
       "cache": false,
-      "env": ["DATABASE_URL"],
-      "dependsOn": ["@opero/config#build"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "dependsOn": [
+        "@opero/config#build",
+        "database#build"
+      ]
     },
     "db:deploy": {
       "cache": false,
-      "env": ["DATABASE_URL"],
-      "dependsOn": ["@opero/config#build"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "dependsOn": [
+        "@opero/config#build"
+      ]
     },
     "db:seed": {
       "cache": false,
-      "env": ["DATABASE_URL"],
-      "dependsOn": ["@opero/config#build"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "dependsOn": [
+        "@opero/config#build",
+        "database#build"
+      ]
     },
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"],
-      "env": ["DATABASE_URL", "NEXT_PUBLIC_API_URL"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**"
+      ],
+      "env": [
+        "DATABASE_URL",
+        "NEXT_PUBLIC_API_URL"
+      ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck", "database#db:generate"]
+      "dependsOn": [
+        "^build",
+        "^typecheck",
+        "database#db:generate"
+      ]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": [
+        "^build"
+      ]
     }
   }
 }

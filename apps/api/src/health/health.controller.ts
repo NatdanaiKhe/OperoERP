@@ -4,9 +4,11 @@ import {
   MemoryHealthIndicator,
   HealthCheck,
 } from '@nestjs/terminus';
+import { Public } from '@/common/decorators/public.decorator';
 import { DatabaseHealthIndicator } from '@/health/database.health';
 
 @Controller('health')
+@Public()
 export class HealthController {
   constructor(
     private health: HealthCheckService,
