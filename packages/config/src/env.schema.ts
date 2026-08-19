@@ -30,19 +30,4 @@ export const envSchema = Joi.object({
   RESEND_RESET_TEMPLATE_ID: Joi.string().optional(),
 });
 
-export const ENV_VARIABLES = [
-  'NODE_ENV',
-  'PORT',
-  'DATABASE_URL',
-  'JWT_SECRET',
-  'JWT_EXPIRES_IN',
-  'CORS_ORIGIN',
-  'REDIS_URL',
-  'RESEND_API_KEY',
-  'MAIL_FROM',
-  'WEB_APP_URL',
-  'INVITE_TOKEN_TTL_HOURS',
-  'RESET_TOKEN_TTL_HOURS',
-  'RESEND_INVITE_TEMPLATE_ID',
-  'RESEND_RESET_TEMPLATE_ID',
-] as const;
+

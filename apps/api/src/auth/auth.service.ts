@@ -10,9 +10,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from '@nestjs/cache-manager';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '@/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import { NotificationService } from '@/notification/notification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -574,7 +573,7 @@ export class AuthService {
 
   private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
     const accessToken = this.generateAccessToken({ userId, roles });
-    const refreshToken = await this.generateToken(40);
+    const refreshToken = crypto.randomBytes(40).toString('hex');
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
@@ -587,9 +586,7 @@ export class AuthService {
         roles: payload.roles,
       },
       {
-        expiresIn: this.config.getOrThrow<string>(
-          'JWT_EXPIRES_IN',
-        ) as jwt.SignOptions['expiresIn'],
+        expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') as JwtSignOptions['expiresIn'],
       },
     );
   }
@@ -601,10 +598,5 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: { userId, tokenHash, expiresAt },
     });
-  }
-
-  private async generateToken(size?: number) {
-    const token = crypto.randomBytes(size ?? 32).toString('hex');
-    return token;
   }
 }

@@ -26,12 +26,4 @@ export class QueueModule {
       exports: [BullModule],
     };
   }
-
-  static registerQueue(opts: { name: string }): DynamicModule {
-    return {
-      module: QueueModule,
-      imports: [BullModule.registerQueue(opts)],
-      exports: [BullModule.registerQueue(opts)],
-    };
-  }
 }

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { WelcomeEmailDto } from './dto/welcome-email.dto';
-import { ResetEmailDto } from './dto/reset-email.dto';
+import type { WelcomeEmailDto } from './dto/welcome-email.dto';
+import type { ResetEmailDto } from './dto/reset-email.dto';
 
 export const JOB_OPTS = {
   attempts: 3,

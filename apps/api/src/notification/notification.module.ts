@@ -1,13 +1,11 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { NotificationService } from '@/notification/notification.service';
 import { EmailProcessor } from '@/notification/email.processor';
-import { QueueModule } from '@/queue/queue.module';
-import { AuditModule } from '@/audit/audit.module';
 
 @Module({
   imports: [
-    QueueModule.registerQueue({ name: 'email' }),
-    AuditModule,
+    BullModule.registerQueue({ name: 'email' }),
   ],
   providers: [NotificationService, EmailProcessor],
   exports: [NotificationService],

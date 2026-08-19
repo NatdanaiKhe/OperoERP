@@ -4,8 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import type { Job } from 'bullmq';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
-import { WelcomeEmailDto } from './dto/welcome-email.dto';
-import { ResetEmailDto } from './dto/reset-email.dto';
+import type { WelcomeEmailDto } from './dto/welcome-email.dto';
+import type { ResetEmailDto } from './dto/reset-email.dto';
 
 @Processor('email')
 @Injectable()

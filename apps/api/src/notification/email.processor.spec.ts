@@ -5,8 +5,8 @@ import {
   AuditLogService,
   AuditAction,
 } from '@/audit/audit-log.service';
-import { WelcomeEmailDto } from '@/notification/dto/welcome-email.dto';
-import { ResetEmailDto } from '@/notification/dto/reset-email.dto';
+import type { WelcomeEmailDto } from '@/notification/dto/welcome-email.dto';
+import type { ResetEmailDto } from '@/notification/dto/reset-email.dto';
 
 // Mock the Resend module
 jest.mock('resend', () => {

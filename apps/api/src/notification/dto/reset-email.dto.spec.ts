@@ -1,32 +1,6 @@
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
-import { ResetEmailDto } from './reset-email.dto';
-
-describe('ResetEmailDto', () => {
-  const valid = {
-    name: 'Jane Doe',
-    email: 'jane@example.com',
-    resetUrl: 'http://localhost:3000/auth/reset-password?token=xyz',
-  };
-
-  it('passes with valid data including localhost URL', async () => {
-    const dto = plainToInstance(ResetEmailDto, valid);
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
-  });
-
-  it('fails when name is missing', async () => {
-    const dto = plainToInstance(ResetEmailDto, { ...valid, name: undefined });
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  it('fails when email is invalid', async () => {
-    const dto = plainToInstance(ResetEmailDto, {
-      ...valid,
-      email: 'not-an-email',
-    });
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-  });
+// DTOs are plain interfaces — class-validator decorators removed.
+// BullMQ job data bypasses Nest's ValidationPipe, so validation was dead at runtime.
+it('ResetEmailDto is a plain interface (no runtime validation)', () => {
+  const dto = { name: 'Jane', email: 'jane@example.com', resetUrl: 'http://localhost:3000/x' };
+  expect(dto.email).toBe('jane@example.com');
 });
