@@ -509,7 +509,7 @@ export class AuthService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
     for (let i = 0; i < 3; i++) {
-      const suffix = i === 0 ? '' : `-${crypto.randomBytes(2).toString('hex')}`;
+      const suffix = i === 0 ? '' : `-${this.generateToken()}`;
       const username = `${base}${suffix}`;
       const existing = await this.prisma.user.findUnique({
         where: { username },
@@ -532,7 +532,7 @@ export class AuthService {
         OR: [{ expiresAt: { lt: new Date() } }, { usedAt: { not: null } }],
       },
     });
-    const raw = crypto.randomBytes(32).toString('hex');
+    const raw = this.generateToken();
     const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000);
     await this.prisma.token.create({
       data: {
@@ -573,7 +573,7 @@ export class AuthService {
 
   private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
     const accessToken = this.generateAccessToken({ userId, roles });
-    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const refreshToken = this.generateToken(40);
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
@@ -586,7 +586,9 @@ export class AuthService {
         roles: payload.roles,
       },
       {
-        expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') as JwtSignOptions['expiresIn'],
+        expiresIn: this.config.getOrThrow<string>(
+          'JWT_EXPIRES_IN',
+        ) as JwtSignOptions['expiresIn'],
       },
     );
   }
@@ -598,5 +600,10 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: { userId, tokenHash, expiresAt },
     });
+  }
+
+  private generateToken(size?: number) {
+    const token = crypto.randomBytes(size ?? 32).toString('hex');
+    return token;
   }
 }
