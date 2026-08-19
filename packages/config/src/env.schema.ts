@@ -18,13 +18,16 @@ export const envSchema = Joi.object({
   JWT_SECRET: Joi.string().min(32).required(),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
   CORS_ORIGIN: Joi.string().default(DEFAULT_WEB_ORIGIN),
+  REDIS_URL: Joi.string()
+    .uri({ scheme: ['redis', 'rediss'] })
+    .required(),
+  RESEND_API_KEY: Joi.string().optional(),
+  MAIL_FROM: Joi.string().optional(),
+  WEB_APP_URL: Joi.string().default(DEFAULT_WEB_ORIGIN),
+  INVITE_TOKEN_TTL_HOURS: Joi.number().integer().min(1).default(48),
+  RESET_TOKEN_TTL_HOURS: Joi.number().integer().min(1).default(1),
+  RESEND_INVITE_TEMPLATE_ID: Joi.string().optional(),
+  RESEND_RESET_TEMPLATE_ID: Joi.string().optional(),
 });
 
-export const ENV_VARIABLES = [
-  'NODE_ENV',
-  'PORT',
-  'DATABASE_URL',
-  'JWT_SECRET',
-  'JWT_EXPIRES_IN',
-  'CORS_ORIGIN',
-] as const;
+

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TerminusModule } from '@nestjs/terminus';
 import { HealthController } from '@/health/health.controller';
 import { DatabaseHealthIndicator } from '@/health/database.health';
+import { PrismaService } from '@/prisma/prisma.service';
 
 describe('HealthController', () => {
   let controller: HealthController;
@@ -10,7 +11,10 @@ describe('HealthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [TerminusModule],
       controllers: [HealthController],
-      providers: [DatabaseHealthIndicator],
+      providers: [
+        DatabaseHealthIndicator,
+        { provide: PrismaService, useValue: { $queryRaw: jest.fn().mockResolvedValue([1]) } },
+      ],
     }).compile();
 
     controller = module.get<HealthController>(HealthController);

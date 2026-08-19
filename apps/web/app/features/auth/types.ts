@@ -11,4 +11,5 @@ export interface Profile {
   isActive: boolean;
   lastLogin: string | null;
   userRoles: UserRole[];
+  menuConfig: string[];
 }

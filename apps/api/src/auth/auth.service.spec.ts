@@ -1,4 +1,9 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -6,13 +11,12 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from '@/auth/auth.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditLogService } from '@/audit/audit-log.service';
+import { NotificationService } from '@/notification/notification.service';
 import type { Request } from 'express';
 
 jest.mock('bcrypt');
 
-const reqMock = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } } as
-  | unknown
-  | Request;
+const reqMock = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } } as Request;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -29,22 +33,34 @@ describe('AuthService', () => {
       create: jest.fn(),
       updateMany: jest.fn(),
     },
+    token: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
   };
 
   const configServiceMock = {
     get: jest.fn((key: string) => {
-      const values: Record<string, string> = {
+      const values: Record<string, string | number> = {
         JWT_SECRET: 'test-secret-that-is-at-least-32-chars-long',
         JWT_EXPIRES_IN: '15m',
         NODE_ENV: 'test',
+        WEB_APP_URL: 'http://localhost:3000',
+        INVITE_TOKEN_TTL_HOURS: 48,
+        RESET_TOKEN_TTL_HOURS: 1,
       };
       return values[key] ?? null;
     }),
     getOrThrow: jest.fn((key: string) => {
-      const values: Record<string, string> = {
+      const values: Record<string, string | number> = {
         JWT_SECRET: 'test-secret-that-is-at-least-32-chars-long',
         JWT_EXPIRES_IN: '15m',
         NODE_ENV: 'test',
+        WEB_APP_URL: 'http://localhost:3000',
+        INVITE_TOKEN_TTL_HOURS: 48,
+        RESET_TOKEN_TTL_HOURS: 1,
       };
       const value = values[key];
       if (value === undefined) throw new Error(`Config key "${key}" not found`);
@@ -56,8 +72,20 @@ describe('AuthService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const notificationMock = {
+    sendInviteEmail: jest.fn().mockResolvedValue(undefined),
+    sendResetEmail: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const cacheMock = {
+    get: jest.fn().mockResolvedValue(undefined),
+    set: jest.fn().mockResolvedValue(undefined),
+    del: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+    cacheMock.get.mockResolvedValue(undefined);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -65,6 +93,8 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: { sign: jest.fn(() => 'token') } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: AuditLogService, useValue: auditLogMock },
+        { provide: NotificationService, useValue: notificationMock },
+        { provide: CACHE_MANAGER, useValue: cacheMock },
       ],
     }).compile();
 
@@ -75,12 +105,310 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  it('throws ConflictException when email is already registered', async () => {
-    prismaMock.user.findUnique.mockResolvedValueOnce({ id: '1' });
+  // --- invite ---
+
+  it('invites a new user: creates with null password, isActive=false, sends email', async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // email check
+      .mockResolvedValueOnce(null); // username check
+    prismaMock.user.create.mockResolvedValue({ id: 'new-user-id' });
+    prismaMock.token.deleteMany.mockResolvedValue({ count: 0 });
+    prismaMock.token.create.mockResolvedValue({});
+
+    const result = await service.invite(
+      {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        department: 'Sales',
+        role: 'user',
+      },
+      reqMock,
+    );
+
+    expect(result).toEqual({ userId: 'new-user-id' });
+    expect(prismaMock.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          email: 'jane@example.com',
+          password: null,
+          isActive: false,
+          department: 'Sales',
+        }),
+      }),
+    );
+    expect(notificationMock.sendInviteEmail).toHaveBeenCalledWith(
+      'jane@example.com',
+      'Jane Doe',
+      expect.stringContaining('/auth/accept-invite?token='),
+    );
+    expect(auditLogMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'INVITE_SENT' }),
+    );
+  });
+
+  it('throws ConflictException when email is already in use by active user', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'existing-id',
+      isActive: true,
+    });
+
     await expect(
-      service.register('user', 'user@example.com', 'password123'),
+      service.invite(
+        {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@example.com',
+          department: 'Sales',
+          role: 'user',
+        },
+        reqMock,
+      ),
     ).rejects.toThrow(ConflictException);
   });
+
+  it('re-issues invite token for pending (inactive) user', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'pending-id',
+      isActive: false,
+    });
+    prismaMock.token.deleteMany.mockResolvedValue({ count: 0 });
+    prismaMock.token.create.mockResolvedValue({});
+
+    const result = await service.invite(
+      {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        department: 'Sales',
+        role: 'user',
+      },
+      reqMock,
+    );
+
+    expect(result).toEqual({ userId: 'pending-id' });
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+    expect(notificationMock.sendInviteEmail).toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException for invalid role', async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // email check
+      .mockResolvedValueOnce(null); // username check
+    prismaMock.user.create.mockRejectedValue({ code: 'P2025' });
+
+    await expect(
+      service.invite(
+        {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@example.com',
+          department: 'Sales',
+          role: 'nonexistent_role',
+        },
+        reqMock,
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  // --- acceptInvite ---
+
+  it('accepts invite: sets password, activates, marks token used', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce({
+      id: 'tok-1',
+      userId: 'user-1',
+      type: 'INVITE',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    });
+    (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed-pass');
+    prismaMock.user.update.mockResolvedValue({});
+    prismaMock.token.update.mockResolvedValue({});
+
+    await service.acceptInvite(
+      { token: 'raw-token', password: 'newpass123' },
+      reqMock,
+    );
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: { password: 'hashed-pass', isActive: true },
+      }),
+    );
+    expect(prismaMock.token.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'tok-1' },
+        data: { usedAt: expect.any(Date) },
+      }),
+    );
+    expect(auditLogMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'INVITE_ACCEPTED' }),
+    );
+  });
+
+  it('rejects accept-invite with invalid token', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      service.acceptInvite({ token: 'bad-token', password: 'newpass123' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects accept-invite with wrong token type', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce({
+      id: 'tok-1',
+      userId: 'user-1',
+      type: 'PASSWORD_RESET',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    });
+
+    await expect(
+      service.acceptInvite({ token: 'reset-token', password: 'newpass123' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects accept-invite with already-used token', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce({
+      id: 'tok-1',
+      userId: 'user-1',
+      type: 'INVITE',
+      usedAt: new Date(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    });
+
+    await expect(
+      service.acceptInvite({ token: 'used-token', password: 'newpass123' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects accept-invite with expired token', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce({
+      id: 'tok-1',
+      userId: 'user-1',
+      type: 'INVITE',
+      usedAt: null,
+      expiresAt: new Date(Date.now() - 1000 * 60),
+    });
+
+    await expect(
+      service.acceptInvite({ token: 'expired-token', password: 'newpass123' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  // --- forgotPassword ---
+
+  it('forgot-password for existing active user: creates token, sends email', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isActive: true,
+    });
+    prismaMock.token.deleteMany.mockResolvedValue({ count: 0 });
+    prismaMock.token.create.mockResolvedValue({});
+
+    await service.forgotPassword('jane@example.com', reqMock);
+
+    expect(notificationMock.sendResetEmail).toHaveBeenCalledWith(
+      'jane@example.com',
+      'Jane Doe',
+      expect.stringContaining('/auth/reset-password?token='),
+    );
+    expect(auditLogMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'PASSWORD_RESET_REQUESTED' }),
+    );
+  });
+
+  it('forgot-password for unknown email: resolves silently, no token/email/audit', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+
+    await service.forgotPassword('unknown@example.com', reqMock);
+
+    expect(prismaMock.token.create).not.toHaveBeenCalled();
+    expect(notificationMock.sendResetEmail).not.toHaveBeenCalled();
+    expect(auditLogMock.log).not.toHaveBeenCalled();
+  });
+
+  it('forgot-password for inactive user: resolves silently, no token/email/audit', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isActive: false,
+    });
+
+    await service.forgotPassword('jane@example.com', reqMock);
+
+    expect(prismaMock.token.create).not.toHaveBeenCalled();
+    expect(notificationMock.sendResetEmail).not.toHaveBeenCalled();
+    expect(auditLogMock.log).not.toHaveBeenCalled();
+  });
+
+  // --- resetPassword ---
+
+  it('resets password with valid token: sets password, marks used, revokes sessions', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce({
+      id: 'tok-1',
+      userId: 'user-1',
+      type: 'PASSWORD_RESET',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    });
+    (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed-pass');
+    prismaMock.user.update.mockResolvedValue({});
+    prismaMock.token.update.mockResolvedValue({});
+    prismaMock.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.resetPassword(
+      { token: 'raw-token', newPassword: 'newpass123' },
+      reqMock,
+    );
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: { password: 'hashed-pass' },
+      }),
+    );
+    expect(prismaMock.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      }),
+    );
+    expect(auditLogMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'PASSWORD_RESET' }),
+    );
+  });
+
+  it('rejects reset-password with invalid token', async () => {
+    prismaMock.token.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      service.resetPassword({ token: 'bad-token', newPassword: 'newpass123' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  // --- validateUser null password ---
+
+  it('validateUser throws UnauthorizedException when password is null', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'u1',
+      password: null,
+      isActive: true,
+      userRoles: [{ role: { name: 'user' } }],
+    });
+    (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
+
+    await expect(
+      service.validateUser('jane@example.com', 'somepass', reqMock),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  // --- refresh ---
 
   it('throws UnauthorizedException when refresh token is missing', async () => {
     await expect(service.refresh(undefined as never)).rejects.toThrow(
@@ -162,5 +490,85 @@ describe('AuthService', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
     expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  // --- profile caching ---
+
+  describe('profile caching', () => {
+    const profileFixture = {
+      id: 'u1',
+      username: 'jane',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isActive: true,
+      lastLogin: null,
+      userRoles: [{ role: { name: 'user' } }],
+      menuConfig: ['dashboard'],
+    };
+
+    it('serves cached result on second call without hitting Prisma', async () => {
+      cacheMock.get.mockResolvedValueOnce(undefined);
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        username: 'jane',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isActive: true,
+        lastLogin: null,
+        userRoles: [
+          {
+            role: {
+              name: 'user',
+              menuVisibility: [{ menuKey: 'dashboard', visible: true }],
+            },
+          },
+        ],
+      });
+
+      await service.profile('u1');
+
+      expect(cacheMock.get).toHaveBeenCalledWith('profile:u1');
+      expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+      expect(cacheMock.set).toHaveBeenCalledWith(
+        'profile:u1',
+        expect.objectContaining({ id: 'u1' }),
+        60_000,
+      );
+
+      cacheMock.get.mockResolvedValueOnce(profileFixture);
+      await service.profile('u1');
+
+      expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates cache on acceptInvite', async () => {
+      prismaMock.token.findUnique.mockResolvedValueOnce({
+        id: 'tok-1',
+        userId: 'user-1',
+        type: 'INVITE',
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+      });
+      (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed-pass');
+      prismaMock.user.update.mockResolvedValue({});
+      prismaMock.token.update.mockResolvedValue({});
+
+      await service.acceptInvite(
+        { token: 'raw-token', password: 'newpass123' },
+        reqMock,
+      );
+
+      expect(cacheMock.del).toHaveBeenCalledWith('profile:user-1');
+    });
+
+    it('invalidates cache on updateLastLogin', async () => {
+      prismaMock.user.update.mockResolvedValue({});
+
+      await service.updateLastLogin('u1');
+
+      expect(cacheMock.del).toHaveBeenCalledWith('profile:u1');
+    });
   });
 });
