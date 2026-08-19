@@ -42,13 +42,13 @@ export class AuthController {
   }
 
   @Get('users')
-  @Roles('admin')
+  @Roles('admin', 'superadmin')
   async listUsers() {
     return this.authService.listUsers();
   }
 
   @Post('invite')
-  @Roles('admin')
+  @Roles('admin', 'superadmin')
   async invite(@Body() dto: InviteDto, @Req() req: Request) {
     const { userId } = await this.authService.invite(dto, req);
     return { message: 'Invitation sent successfully', userId };

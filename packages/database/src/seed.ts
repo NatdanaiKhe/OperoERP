@@ -197,7 +197,37 @@ const roles: RoleDef[] = [
     description: 'Full system access',
     permissions: permissions.map((p) => p.name),
   },
+  {
+    name: 'superadmin',
+    description: 'Full system access including role and menu management',
+    permissions: permissions.map((p) => p.name),
+  },
 ];
+
+// Configurable menu keys (must match the frontend sidebar keys).
+const MENU_KEYS = [
+  'dashboard',
+  'user_management',
+  'customers',
+  'products',
+  'sales',
+  'approvals',
+  'reports',
+  'quick_action',
+] as const;
+
+// Default menu visibility per role. All hidden by default —
+// only the keys listed here are set to visible=true.
+const MENU_DEFAULTS: Record<string, string[]> = {
+  superadmin: [...MENU_KEYS],
+  admin: [...MENU_KEYS],
+  manager: ['dashboard', 'customers', 'products', 'sales', 'approvals', 'reports', 'quick_action'],
+  user: ['dashboard', 'customers', 'products'],
+  sales_representative: ['dashboard', 'customers', 'sales', 'reports'],
+  sales_manager: ['dashboard', 'customers', 'sales', 'approvals', 'reports', 'quick_action'],
+  warehouse_staff: ['dashboard', 'products', 'sales'],
+  accountant: ['dashboard', 'reports', 'customers'],
+};
 
 async function main() {
   // 1. Seed permissions (idempotent upsert by unique name).
@@ -238,6 +268,28 @@ async function main() {
     }
     console.log(
       `Seeded role "${r.name}" with ${r.permissions.length} permissions.`,
+    );
+  }
+
+  // 3. Seed menu visibility defaults per role (fail-closed: all hidden by default).
+  for (const [roleName, visibleKeys] of Object.entries(MENU_DEFAULTS)) {
+    const role = await prisma.role.findUnique({ where: { name: roleName } });
+    if (!role) {
+      console.warn(`Skipping menu defaults for unknown role "${roleName}".`);
+      continue;
+    }
+    for (const menuKey of MENU_KEYS) {
+      const visible = visibleKeys.includes(menuKey);
+      await prisma.menuVisibility.upsert({
+        where: {
+          roleId_menuKey: { roleId: role.id, menuKey },
+        },
+        update: { visible },
+        create: { roleId: role.id, menuKey, visible },
+      });
+    }
+    console.log(
+      `Seeded menu visibility for "${roleName}" (${visibleKeys.length}/${MENU_KEYS.length} visible).`,
     );
   }
 }

@@ -100,13 +100,39 @@ export class AuthService {
         lastName: true,
         isActive: true,
         lastLogin: true,
-        userRoles: { select: { role: { select: { name: true } } } },
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+                menuVisibility: { select: { menuKey: true, visible: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    return user;
+    // Merge menu visibility from all roles (OR: if any role grants visibility, it's visible).
+    const visibleKeys = new Set<string>();
+    for (const ur of user.userRoles) {
+      for (const mv of ur.role.menuVisibility) {
+        if (mv.visible) visibleKeys.add(mv.menuKey);
+      }
+    }
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
+      menuConfig: [...visibleKeys],
+    };
   }
 
   async listUsers() {
