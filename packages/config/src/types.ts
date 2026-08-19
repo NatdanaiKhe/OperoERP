@@ -5,6 +5,7 @@ export interface AppEnv {
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
   CORS_ORIGIN: string;
+  REDIS_URL: string;
   RESEND_API_KEY?: string;
   MAIL_FROM?: string;
   WEB_APP_URL: string;
