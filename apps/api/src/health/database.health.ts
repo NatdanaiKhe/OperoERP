@@ -12,12 +12,24 @@ export class DatabaseHealthIndicator {
   async isHealthy(key: string) {
     const indicator = this.healthIndicatorService.check(key);
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.withTimeout(this.prisma.$queryRaw`SELECT 1`, 2000);
       return indicator.up();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Database is unreachable';
       return indicator.down({ message });
     }
+  }
+
+  private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Database health check timed out')),
+          ms,
+        ),
+      ),
+    ]);
   }
 }
