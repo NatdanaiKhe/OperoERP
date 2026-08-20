@@ -72,6 +72,15 @@
         "database#db:generate"
       ]
     },
+    "test": {
+      "dependsOn": [
+        "^build",
+        "database#db:generate"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
     "dev": {
       "cache": false,
       "persistent": true,
