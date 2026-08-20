@@ -7,28 +7,37 @@ on:
     branches: [main, uat, dev]
 
 jobs:
-  # --- Catches committed API keys, tokens, credentials before they merge ---
+  # Catches committed API keys, tokens, credentials, etc.
   secret-scan:
     name: Secret scanning
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          # Full history needed so gitleaks can diff the correct commit range
-          # (PR: base...head, push: before...after).
+          # Full history allows Gitleaks to inspect the repository history.
           fetch-depth: 0
 
-      - uses: gitleaks/gitleaks-action@v2
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
 
-  # --- Blocks the PR if a *newly introduced* dependency has a known CVE ---
-  # Complements yarn audit: yarn audit checks the whole lockfile every run,
-  # this specifically flags what THIS pr is adding/upgrading to.
+  # Blocks PRs when newly introduced/updated dependencies
+  # have known vulnerabilities.
   dependency-review:
     name: Dependency review
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
+
     if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high

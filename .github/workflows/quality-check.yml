@@ -1,33 +1,39 @@
 name: CodeQL
 
-# Separate from pr-checks.yml on purpose: this also needs to run on pushes
-# to main/develop (not just PRs) and on a schedule, to catch new CVEs in
-# code that hasn't changed. security-events: write is required to upload
-# results to the repo's Security tab.
+# Runs on pushes, PRs, and weekly on a schedule.
+# CodeQL results are uploaded to the repository Security tab.
+
 on:
   push:
     branches: [main, uat, dev]
+
   pull_request:
     branches: [main, uat, dev]
+
   schedule:
-    # every monday at 3 a.m.
+    # Every Monday at 3:00 AM UTC
     - cron: '0 3 * * 1'
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: [self-hosted, Linux, X64]
-    permissions: security-events: write
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
 
-      # No manual build step needed — JS/TS is analyzed without compiling.
+      # No manual build required for JavaScript/TypeScript.
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: '/language:javascript-typescript'
+          category: /language:javascript-typescript
