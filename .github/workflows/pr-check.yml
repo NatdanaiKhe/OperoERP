@@ -1,6 +1,6 @@
 name: PR Checks
 
-# Runs on every PR targeting main/develop.
+# Runs on every PR targeting main/uat/dev.
 # Yarn 4 (Berry) workspace monorepo, Turborepo, apps/api (NestJS), apps/web (Next.js).
 on:
   pull_request:
@@ -15,6 +15,22 @@ jobs:
   pr-checks:
     name: PR checks
     runs-on: [self-hosted, Linux, X64]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,9 +42,19 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      # Berry's audit command moved under `yarn npm audit` (vs `yarn audit`
+      # in Classic). Only fails on high/critical — lower severities just log.
+      - name: Audit dependencies
+        run: yarn npm audit --severity high --all
+
       # Runs in one turbo invocation so it schedules tasks in dependency
-      # order (build usually depends on lint/typecheck passing) and
+      # order (build usually depends on lint/typecheck/test passing) and
       # skips anything unaffected by this PR's changes via its own cache,
       # which persists naturally between runs on a self-hosted box.
       - name: Lint, type-check, test, build
         run: yarn turbo run lint typecheck test build
+        env:
+          # Ephemeral, disposable DB spun up above — same for every PR run,
+          # torn down when the job ends. Never point CI at your real DB.
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: ci-test-secret-not-used-in-production
