@@ -25,6 +25,7 @@ jobs:
       DATABASE_URL: postgresql://test:test@localhost:5432/test
       JWT_SECRET: ci-test-secret-not-used-in-production
       REDIS_URL: redis://localhost:6379
+      NEXT_PUBLIC_API_URL: http://localhost:3000
 
     services:
       postgres:
