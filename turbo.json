@@ -3,7 +3,9 @@
   "tasks": {
     "db:generate": {
       "env": [
-        "DATABASE_URL"
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "REDIS_URL"
       ],
       "dependsOn": [
         "@opero/config#build"
