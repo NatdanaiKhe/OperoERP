@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -76,8 +77,15 @@ describe('AuthService', () => {
     sendResetEmail: jest.fn().mockResolvedValue(undefined),
   };
 
+  const cacheMock = {
+    get: jest.fn().mockResolvedValue(undefined),
+    set: jest.fn().mockResolvedValue(undefined),
+    del: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+    cacheMock.get.mockResolvedValue(undefined);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -86,6 +94,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: AuditLogService, useValue: auditLogMock },
         { provide: NotificationService, useValue: notificationMock },
+        { provide: CACHE_MANAGER, useValue: cacheMock },
       ],
     }).compile();
 
@@ -481,5 +490,85 @@ describe('AuthService', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
     expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  // --- profile caching ---
+
+  describe('profile caching', () => {
+    const profileFixture = {
+      id: 'u1',
+      username: 'jane',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isActive: true,
+      lastLogin: null,
+      userRoles: [{ role: { name: 'user' } }],
+      menuConfig: ['dashboard'],
+    };
+
+    it('serves cached result on second call without hitting Prisma', async () => {
+      cacheMock.get.mockResolvedValueOnce(undefined);
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        username: 'jane',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isActive: true,
+        lastLogin: null,
+        userRoles: [
+          {
+            role: {
+              name: 'user',
+              menuVisibility: [{ menuKey: 'dashboard', visible: true }],
+            },
+          },
+        ],
+      });
+
+      await service.profile('u1');
+
+      expect(cacheMock.get).toHaveBeenCalledWith('profile:u1');
+      expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+      expect(cacheMock.set).toHaveBeenCalledWith(
+        'profile:u1',
+        expect.objectContaining({ id: 'u1' }),
+        60_000,
+      );
+
+      cacheMock.get.mockResolvedValueOnce(profileFixture);
+      await service.profile('u1');
+
+      expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates cache on acceptInvite', async () => {
+      prismaMock.token.findUnique.mockResolvedValueOnce({
+        id: 'tok-1',
+        userId: 'user-1',
+        type: 'INVITE',
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+      });
+      (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed-pass');
+      prismaMock.user.update.mockResolvedValue({});
+      prismaMock.token.update.mockResolvedValue({});
+
+      await service.acceptInvite(
+        { token: 'raw-token', password: 'newpass123' },
+        reqMock,
+      );
+
+      expect(cacheMock.del).toHaveBeenCalledWith('profile:user-1');
+    });
+
+    it('invalidates cache on updateLastLogin', async () => {
+      prismaMock.user.update.mockResolvedValue({});
+
+      await service.updateLastLogin('u1');
+
+      expect(cacheMock.del).toHaveBeenCalledWith('profile:u1');
+    });
   });
 });

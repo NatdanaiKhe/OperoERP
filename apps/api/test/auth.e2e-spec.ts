@@ -14,15 +14,17 @@ process.env.RESEND_API_KEY = 're_test_key';
 process.env.MAIL_FROM = 'Opero ERP <no-reply@example.com>';
 process.env.RESEND_INVITE_TEMPLATE_ID = 'tpl_invite';
 process.env.RESEND_RESET_TEMPLATE_ID = 'tpl_reset';
+process.env.REDIS_URL = 'redis://localhost:6379';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { getQueueToken } from '@nestjs/bullmq';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
 import * as bcrypt from 'bcrypt';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
-import { NotificationService } from '@/notification/notification.service';
+import { EmailProcessor } from '@/notification/email.processor';
 
 // ---------------------------------------------------------------------------
 // In-memory Prisma mock — mimics the subset of PrismaService methods that
@@ -207,18 +209,15 @@ describe('Auth (e2e)', () => {
   let inviteToken = '';
   let resetToken = '';
 
-  const notificationMock = {
-    sendInviteEmail: jest
+  const emailQueueMock = {
+    add: jest
       .fn()
-      .mockImplementation((_to: string, _name: string, url: string) => {
-        inviteToken = url.match(/token=([^&]+)/)?.[1] ?? '';
-        return Promise.resolve();
-      }),
-    sendResetEmail: jest
-      .fn()
-      .mockImplementation((_to: string, _name: string, url: string) => {
-        resetToken = url.match(/token=([^&]+)/)?.[1] ?? '';
-        return Promise.resolve();
+      .mockImplementation((_name: string, data: Record<string, string>) => {
+        const inviteMatch = data.inviteUrl?.match(/token=([^&]+)/);
+        if (inviteMatch) inviteToken = inviteMatch[1];
+        const resetMatch = data.resetUrl?.match(/token=([^&]+)/);
+        if (resetMatch) resetToken = resetMatch[1];
+        return Promise.resolve({});
       }),
   };
 
@@ -247,8 +246,10 @@ describe('Auth (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
-      .overrideProvider(NotificationService)
-      .useValue(notificationMock)
+      .overrideProvider(getQueueToken('email'))
+      .useValue(emailQueueMock)
+      .overrideProvider(EmailProcessor)
+      .useValue({})
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -305,7 +306,7 @@ describe('Auth (e2e)', () => {
 
     expect(res.body.message).toBe('Invitation sent successfully');
     expect(res.body.userId).toEqual(expect.any(String));
-    expect(notificationMock.sendInviteEmail).toHaveBeenCalled();
+    expect(emailQueueMock.add).toHaveBeenCalled();
     expect(inviteToken.length).toBeGreaterThan(0);
   });
 
@@ -399,7 +400,7 @@ describe('Auth (e2e)', () => {
     expect(res.body.message).toBe(
       'If the email exists, a reset link has been sent.',
     );
-    expect(notificationMock.sendResetEmail).toHaveBeenCalled();
+    expect(emailQueueMock.add).toHaveBeenCalled();
     expect(resetToken.length).toBeGreaterThan(0);
   });
 

@@ -14,6 +14,7 @@ export enum AuditAction {
   REFRESH = 'REFRESH',
   REVOKE_ALL = 'REVOKE_ALL',
   PASSWORD_CHANGE = 'PASSWORD_CHANGE',
+  EMAIL_SEND_FAILED = 'EMAIL_SEND_FAILED',
 }
 
 @Injectable()

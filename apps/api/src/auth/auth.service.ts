@@ -1,15 +1,17 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from '@nestjs/cache-manager';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '@/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import { NotificationService } from '@/notification/notification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -20,6 +22,8 @@ import type { Request } from 'express';
 
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_TTL_DAYS = 30;
+// ponytail: TTL-bounded staleness for menu-config changes; add per-user invalidation when role membership changes frequently
+const PROFILE_CACHE_TTL = 60_000;
 // Valid bcrypt hash used to equalize timing when the email is unknown.
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('timing-equalizer', SALT_ROUNDS);
 
@@ -36,6 +40,7 @@ export class AuthService {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private notification: NotificationService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
   ) {}
 
   async validateUser(email: string, password: string, req?: Request) {
@@ -90,6 +95,13 @@ export class AuthService {
   }
 
   async profile(userId: string) {
+    const cacheKey = `profile:${userId}`;
+    try {
+      const cached = await this.cache.get(cacheKey);
+      if (cached !== undefined && cached !== null) return cached;
+    } catch {
+      // Cache unavailable — fall through to Prisma
+    }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -122,7 +134,7 @@ export class AuthService {
         if (mv.visible) visibleKeys.add(mv.menuKey);
       }
     }
-    return {
+    const result = {
       id: user.id,
       username: user.username,
       email: user.email,
@@ -133,6 +145,12 @@ export class AuthService {
       userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
       menuConfig: [...visibleKeys],
     };
+    try {
+      await this.cache.set(cacheKey, result, PROFILE_CACHE_TTL);
+    } catch {
+      // Cache unavailable — result still returned
+    }
+    return result;
   }
 
   async listUsers() {
@@ -258,6 +276,11 @@ export class AuthService {
       where: { id },
       data: { usedAt: new Date() },
     });
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
     await this.auditLog.log({
       action: AuditAction.INVITE_ACCEPTED,
       userId,
@@ -308,6 +331,11 @@ export class AuthService {
     });
     // Force re-login on every device after a password reset.
     await this.revokeAllForUser(userId);
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
     await this.auditLog.log({
       action: AuditAction.PASSWORD_RESET,
       userId,
@@ -445,6 +473,11 @@ export class AuthService {
     });
     // Force re-login on every device after a password change.
     await this.revokeAllForUser(userId);
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
   }
 
   async updateLastLogin(userId: string) {
@@ -452,6 +485,11 @@ export class AuthService {
       where: { id: userId },
       data: { lastLogin: new Date() },
     });
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
   }
 
   async revokeAllForUser(userId: string) {
@@ -471,7 +509,7 @@ export class AuthService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
     for (let i = 0; i < 3; i++) {
-      const suffix = i === 0 ? '' : `-${crypto.randomBytes(2).toString('hex')}`;
+      const suffix = i === 0 ? '' : `-${this.generateToken()}`;
       const username = `${base}${suffix}`;
       const existing = await this.prisma.user.findUnique({
         where: { username },
@@ -494,7 +532,7 @@ export class AuthService {
         OR: [{ expiresAt: { lt: new Date() } }, { usedAt: { not: null } }],
       },
     });
-    const raw = crypto.randomBytes(32).toString('hex');
+    const raw = this.generateToken();
     const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000);
     await this.prisma.token.create({
       data: {
@@ -535,7 +573,7 @@ export class AuthService {
 
   private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
     const accessToken = this.generateAccessToken({ userId, roles });
-    const refreshToken = await this.generateToken(40);
+    const refreshToken = this.generateToken(40);
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
@@ -550,7 +588,7 @@ export class AuthService {
       {
         expiresIn: this.config.getOrThrow<string>(
           'JWT_EXPIRES_IN',
-        ) as jwt.SignOptions['expiresIn'],
+        ) as JwtSignOptions['expiresIn'],
       },
     );
   }
@@ -564,7 +602,7 @@ export class AuthService {
     });
   }
 
-  private async generateToken(size?: number) {
+  private generateToken(size?: number) {
     const token = crypto.randomBytes(size ?? 32).toString('hex');
     return token;
   }
