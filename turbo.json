@@ -2,6 +2,9 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "db:generate": {
+      "env": [
+        "DATABASE_URL"
+      ],
       "dependsOn": [
         "@opero/config#build"
       ],
