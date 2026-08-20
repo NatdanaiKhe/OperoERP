@@ -1,12 +1,14 @@
 name: PR Checks
 
 # Runs on every PR targeting main/uat/dev.
-# Yarn 4 (Berry) workspace monorepo, Turborepo, apps/api (NestJS), apps/web (Next.js).
+# Yarn 4 (Berry) workspace monorepo, Turborepo,
+# apps/api (NestJS), apps/web (Next.js).
+
 on:
   pull_request:
     branches: [main, uat, dev]
 
-# Cancel superseded runs on the same branch to save CI minutes.
+# Cancel superseded runs on the same PR/branch.
 concurrency:
   group: pr-checks-${{ github.ref }}
   cancel-in-progress: true
@@ -14,7 +16,16 @@ concurrency:
 jobs:
   pr-checks:
     name: PR checks
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
+
+    # CI-only environment.
+    # These are disposable credentials and must never point
+    # at your real homelab services.
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      JWT_SECRET: ci-test-secret-not-used-in-production
+      REDIS_URL: redis://localhost:6379
+      NEXT_PUBLIC_API_URL: http://localhost:3000
 
     services:
       postgres:
@@ -31,10 +42,22 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    steps:
-      - uses: actions/checkout@v4
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'yarn'
@@ -42,19 +65,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # Berry's audit command moved under `yarn npm audit` (vs `yarn audit`
-      # in Classic). Only fails on high/critical — lower severities just log.
+      # Berry's audit command is `yarn npm audit`.
+      # Only high/critical vulnerabilities fail the workflow.
       - name: Audit dependencies
         run: yarn npm audit --severity high --all
 
-      # Runs in one turbo invocation so it schedules tasks in dependency
-      # order (build usually depends on lint/typecheck/test passing) and
-      # skips anything unaffected by this PR's changes via its own cache,
-      # which persists naturally between runs on a self-hosted box.
+      # Run all validation/build tasks through one Turbo invocation.
       - name: Lint, type-check, test, build
         run: yarn turbo run lint typecheck test build
-        env:
-          # Ephemeral, disposable DB spun up above — same for every PR run,
-          # torn down when the job ends. Never point CI at your real DB.
-          DATABASE_URL: postgresql://test:test@localhost:5433/test
-          JWT_SECRET: ci-test-secret-not-used-in-production
