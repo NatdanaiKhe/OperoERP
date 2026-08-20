@@ -1,0 +1,42 @@
+name: PR Checks
+
+# Runs on every PR targeting main/develop.
+# Yarn 4 (Berry) workspace monorepo, Turborepo, apps/api (NestJS), apps/web (Next.js).
+on:
+  pull_request:
+    branches: [main, uat, dev]
+
+# Cancel superseded runs on the same branch to save CI minutes.
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-checks:
+    name: PR checks
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Runs in one turbo invocation so it schedules tasks in dependency
+      # order (build usually depends on lint/typecheck passing) and
+      # skips anything unaffected by this PR's changes via its own cache,
+      # which persists naturally between runs on a self-hosted box.
+      - name: Lint, type-check, test, build
+        run: yarn turbo run lint typecheck test build
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: apps/api/coverage
+          retention-days: 7
