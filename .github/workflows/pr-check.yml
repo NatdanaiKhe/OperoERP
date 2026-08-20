@@ -1,4 +1,3 @@
-```yaml
 name: PR Checks
 
 # Runs on every PR targeting main/uat/dev.
@@ -73,4 +72,3 @@ jobs:
       # Run all validation/build tasks through one Turbo invocation.
       - name: Lint, type-check, test, build
         run: yarn turbo run lint typecheck test build
-```
