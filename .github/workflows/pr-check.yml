@@ -24,7 +24,7 @@ jobs:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -56,5 +56,5 @@ jobs:
         env:
           # Ephemeral, disposable DB spun up above — same for every PR run,
           # torn down when the job ends. Never point CI at your real DB.
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://test:test@localhost:5433/test
           JWT_SECRET: ci-test-secret-not-used-in-production
