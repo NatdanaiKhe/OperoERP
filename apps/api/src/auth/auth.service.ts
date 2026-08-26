@@ -220,7 +220,7 @@ export class AuthService {
           password: null,
           firstName: dto.firstName,
           lastName: dto.lastName,
-          department: dto.department,
+          departmentId: dto.departmentId,
           isActive: false,
           userRoles: {
             create: {

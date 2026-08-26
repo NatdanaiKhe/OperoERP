@@ -15,6 +15,8 @@ import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import { NotificationModule } from '@/notification/notification.module';
 import { RolesModule } from '@/roles/roles.module';
 import { QueueModule } from '@/queue/queue.module';
+import { CompanyModule } from './company/company.module';
+import { DepartmentModule } from './department/department.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { QueueModule } from '@/queue/queue.module';
     NotificationModule,
     RolesModule,
     QueueModule.forRootAsync(),
+    CompanyModule,
+    DepartmentModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

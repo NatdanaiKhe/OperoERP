@@ -299,7 +299,7 @@ describe('Auth (e2e)', () => {
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
-        department: 'Sales',
+        departmentId: 'dept-uuid-1',
         role: 'user',
       })
       .expect(201);
@@ -320,7 +320,7 @@ describe('Auth (e2e)', () => {
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
-        department: 'Sales',
+        departmentId: 'dept-uuid-1',
         role: 'user',
       })
       .expect(401);
