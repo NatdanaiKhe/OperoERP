@@ -28,6 +28,12 @@ describe('AuthService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    department: {
+      findUnique: jest.fn(),
+    },
+    role: {
+      findFirst: jest.fn(),
+    },
     refreshToken: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -111,6 +117,10 @@ describe('AuthService', () => {
     prismaMock.user.findUnique
       .mockResolvedValueOnce(null) // email check
       .mockResolvedValueOnce(null); // username check
+    prismaMock.department.findUnique.mockResolvedValue({
+      companyId: 'company-1',
+    });
+    prismaMock.role.findFirst.mockResolvedValue({ id: 'role-user' });
     prismaMock.user.create.mockResolvedValue({ id: 'new-user-id' });
     prismaMock.token.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.token.create.mockResolvedValue({});
@@ -127,6 +137,11 @@ describe('AuthService', () => {
     );
 
     expect(result).toEqual({ userId: 'new-user-id' });
+    // Validation: role is resolved scoped to the user's company.
+    expect(prismaMock.role.findFirst).toHaveBeenCalledWith({
+      where: { name: 'user', companyId: 'company-1' },
+      select: { id: true },
+    });
     expect(prismaMock.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -134,6 +149,7 @@ describe('AuthService', () => {
           password: null,
           isActive: false,
           departmentId: 'dept-uuid-1',
+          userRoles: { create: { roleId: 'role-user' } },
         }),
       }),
     );
@@ -191,11 +207,15 @@ describe('AuthService', () => {
     expect(notificationMock.sendInviteEmail).toHaveBeenCalled();
   });
 
-  it('throws BadRequestException for invalid role', async () => {
+  it('throws BadRequestException when role is not in the user\'s company', async () => {
     prismaMock.user.findUnique
       .mockResolvedValueOnce(null) // email check
       .mockResolvedValueOnce(null); // username check
-    prismaMock.user.create.mockRejectedValue({ code: 'P2025' });
+    // 'user' role only exists in company-2; invitee's department is company-1.
+    prismaMock.department.findUnique.mockResolvedValue({
+      companyId: 'company-1',
+    });
+    prismaMock.role.findFirst.mockResolvedValue(null);
 
     await expect(
       service.invite(
@@ -204,11 +224,34 @@ describe('AuthService', () => {
           lastName: 'Doe',
           email: 'jane@example.com',
           departmentId: 'dept-uuid-1',
-          role: 'nonexistent_role',
+          role: 'user',
         },
         reqMock,
       ),
     ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException for unknown department', async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // email check
+      .mockResolvedValueOnce(null); // username check
+    prismaMock.department.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.invite(
+        {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@example.com',
+          departmentId: 'dept-does-not-exist',
+          role: 'user',
+        },
+        reqMock,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.role.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
   });
 
   // --- acceptInvite ---

@@ -211,36 +211,40 @@ export class AuthService {
 
     const username = await this.generateUniqueUsername(dto.email);
 
-    let user;
-    try {
-      user = await this.prisma.user.create({
-        data: {
-          username,
-          email: dto.email,
-          password: null,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          departmentId: dto.departmentId,
-          isActive: false,
-          userRoles: {
-            create: {
-              role: { connect: { name: dto.role } },
-            },
-          },
-        },
-      });
-    } catch (err) {
-      // P2025 = role not found (the connect failed).
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        (err as { code: string }).code === 'P2025'
-      ) {
-        throw new BadRequestException('Invalid role');
-      }
-      throw err;
+    // Resolve the invitee's company via their department, then look the role
+    // up scoped to that company. A role belonging to any other company simply
+    // doesn't resolve here, so cross-company assignments are rejected at the
+    // service layer (the schema can't express this — User has no companyId FK).
+    const department = await this.prisma.department.findUnique({
+      where: { id: dto.departmentId },
+      select: { companyId: true },
+    });
+    if (!department) {
+      throw new BadRequestException('Invalid department');
     }
+
+    const role = await this.prisma.role.findFirst({
+      where: { name: dto.role, companyId: department.companyId },
+      select: { id: true },
+    });
+    if (!role) {
+      throw new BadRequestException('Invalid role');
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        username,
+        email: dto.email,
+        password: null,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        departmentId: dto.departmentId,
+        isActive: false,
+        userRoles: {
+          create: { roleId: role.id },
+        },
+      },
+    });
 
     const raw = await this.generateTokenRecord(
       user.id,
