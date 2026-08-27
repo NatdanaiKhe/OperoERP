@@ -1,17 +1,17 @@
 info:
-  name: Reset Password
+  name: Accept Invite
   type: http
-  seq: 9
+  seq: 7
 
 http:
   method: POST
-  url: "{{baseUrl}}/auth/reset-password"
+  url: "{{baseUrl}}/auth/accept-invite"
   body:
     type: json
     data: |-
       {
-        "token": "reset-token-here",
-        "newPassword": "{{password}}"
+        "token": "invite-token-here",
+        "password": "{{password}}"
       }
   auth:
     type: none

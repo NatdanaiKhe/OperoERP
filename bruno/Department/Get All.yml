@@ -1,11 +1,11 @@
 info:
-  name: Profile
+  name: Get All
   type: http
-  seq: 4
+  seq: 2
 
 http:
   method: GET
-  url: '{{baseUrl}}/auth/profile'
+  url: "{{baseUrl}}/department"
   auth: inherit
 
 settings:

@@ -5,12 +5,16 @@ variables:
   - name: username
     value: johndoe
   - name: email
-    value: john.doe@example.com
+    value: admin@opero.local
   - name: password
-    value: SecurePassword123!
+    value: "12345678"
   - name: firstName
     value: John
   - name: lastName
     value: Doe
   - name: accessToken
-    value: ''
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXQ0OTMwc3YwMDFleTZvdmIyYm8wdWRtIiwicm9sZXMiOlsic3VwZXJhZG1pbiJdLCJpYXQiOjE3ODczOTc4MDMsImV4cCI6MTc4NzM5ODcwM30.C0AwrbCpp3qoOWtwNwmpixyLyt4YasrLTsO9RbF2hMQ
+  - name: companyId
+    value: ae377aca-0388-44ae-9ad2-3af74f146961
+  - name: departmentId
+    value: dept-uuid-1

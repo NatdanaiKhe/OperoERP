@@ -1,20 +1,18 @@
 info:
-  name: Reset Password
+  name: Create Company
   type: http
-  seq: 9
+  seq: 3
 
 http:
   method: POST
-  url: "{{baseUrl}}/auth/reset-password"
+  url: "{{baseUrl}}/company"
   body:
     type: json
     data: |-
       {
-        "token": "reset-token-here",
-        "newPassword": "{{password}}"
+        "name": "Acme Corporation"
       }
-  auth:
-    type: none
+  auth: inherit
 
 settings:
   encodeUrl: true

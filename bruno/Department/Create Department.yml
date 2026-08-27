@@ -1,20 +1,19 @@
 info:
-  name: Reset Password
+  name: Create Department
   type: http
-  seq: 9
+  seq: 1
 
 http:
   method: POST
-  url: "{{baseUrl}}/auth/reset-password"
+  url: "{{baseUrl}}/department"
   body:
     type: json
     data: |-
       {
-        "token": "reset-token-here",
-        "newPassword": "{{password}}"
+        "name": "Engineering",
+        "companyId": "{{companyId}}"
       }
-  auth:
-    type: none
+  auth: inherit
 
 settings:
   encodeUrl: true

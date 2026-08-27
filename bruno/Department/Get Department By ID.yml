@@ -1,16 +1,12 @@
 info:
-  name: Logout
+  name: Get Department By ID
   type: http
   seq: 3
 
 http:
-  method: POST
-  url: '{{baseUrl}}/auth/logout'
+  method: GET
+  url: "{{baseUrl}}/department/{{departmentId}}"
   auth: inherit
-
-  script:
-    postResponse: |-
-      bru.setEnvVar("accessToken", "");
 
 settings:
   encodeUrl: true

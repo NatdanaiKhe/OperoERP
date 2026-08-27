@@ -1,16 +1,12 @@
 info:
-  name: Logout
+  name: Assign User
   type: http
-  seq: 3
+  seq: 6
 
 http:
   method: POST
-  url: '{{baseUrl}}/auth/logout'
+  url: "{{baseUrl}}/department/{{departmentId}}/users/user-uuid-1"
   auth: inherit
-
-  script:
-    postResponse: |-
-      bru.setEnvVar("accessToken", "");
 
 settings:
   encodeUrl: true
