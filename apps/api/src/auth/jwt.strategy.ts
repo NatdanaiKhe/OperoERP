@@ -1,3 +1,4 @@
+import { isSuperAdmin } from '@/common/utils/auth.utils';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
@@ -6,6 +7,8 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 interface JwtPayload {
   sub: string;
   roles: string[];
+  companyId: string;
+  isSuperAdmin: boolean;
 }
 
 @Injectable()
@@ -22,6 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       roles: payload.roles,
+      companyId: payload.companyId,
+      isSuperAdmin: payload.isSuperAdmin,
     };
   }
 }

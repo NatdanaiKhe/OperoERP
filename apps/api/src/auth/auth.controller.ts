@@ -91,9 +91,11 @@ export class AuthController {
       req,
     );
     const roles = user.userRoles.map((ur) => ur.role.name);
+    const companyId = user.userRoles[0]?.role.companyId ?? null;
     const { accessToken, refreshToken } = await this.authService.login(
       user.id,
       roles,
+      companyId,
       req,
     );
     await this.authService.updateLastLogin(user.id);

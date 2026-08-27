@@ -19,6 +19,8 @@ import { InviteDto } from './dto/invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { Request } from 'express';
+import { JwtPayload } from '@/common/decorators/current-user.decorator';
+import { isSuperAdmin } from '@/common/utils/auth.utils';
 
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_TTL_DAYS = 30;
@@ -50,7 +52,9 @@ export class AuthService {
         id: true,
         password: true,
         isActive: true,
-        userRoles: { select: { role: { select: { name: true } } } },
+        userRoles: {
+          select: { role: { select: { name: true, companyId: true } } },
+        },
       },
     });
 
@@ -347,8 +351,18 @@ export class AuthService {
     });
   }
 
-  async login(userId: string, roles: string[], req?: Request) {
-    const tokens = await this.generateAccessAndRefreshToken(userId, roles);
+  async login(
+    userId: string,
+    roles: string[],
+    companyId: string,
+    req?: Request,
+  ) {
+    const tokens = await this.generateAccessAndRefreshToken(
+      userId,
+      roles,
+      companyId,
+      isSuperAdmin(roles),
+    );
     await this.auditLog.log({
       action: AuditAction.LOGIN_SUCCESS,
       userId,
@@ -372,7 +386,9 @@ export class AuthService {
         user: {
           select: {
             isActive: true,
-            userRoles: { select: { role: { select: { name: true } } } },
+            userRoles: {
+              select: { role: { select: { name: true, companyId: true } } },
+            },
           },
         },
       },
@@ -406,9 +422,13 @@ export class AuthService {
     }
 
     const roles = stored.user.userRoles.map((ur) => ur.role.name);
+    const companyId = stored.user.userRoles[0]?.role.companyId ?? null;
+
     const tokens = await this.generateAccessAndRefreshToken(
       stored.userId,
       roles,
+      companyId,
+      isSuperAdmin(roles),
     );
 
     await this.auditLog.log({
@@ -575,19 +595,30 @@ export class AuthService {
     return { id: token.id, userId: token.userId };
   }
 
-  private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
-    const accessToken = this.generateAccessToken({ userId, roles });
+  private async generateAccessAndRefreshToken(
+    userId: string,
+    roles: string[],
+    companyId: string,
+    isSuperAdmin: boolean,
+  ) {
+    const accessToken = this.generateAccessToken({
+      userId,
+      roles,
+      companyId,
+      isSuperAdmin,
+    });
     const refreshToken = this.generateToken(40);
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
   }
 
-  private generateAccessToken(payload: { userId: string; roles: string[] }) {
+  private generateAccessToken(payload: JwtPayload) {
     return this.jwt.sign(
       {
         sub: payload.userId,
         roles: payload.roles,
+        companyId: payload.companyId,
       },
       {
         expiresIn: this.config.getOrThrow<string>(
