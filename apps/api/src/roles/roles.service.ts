@@ -5,12 +5,23 @@ import { PrismaService } from '@/prisma/prisma.service';
 export class RolesService {
   constructor(private prisma: PrismaService) {}
 
-  async listRoles() {
-    const roles = await this.prisma.role.findMany({
+  async listRoles(requestingUser: {
+    companyId: string | null;
+    isSuperAdmin: boolean;
+  }) {
+    const { companyId, isSuperAdmin } = requestingUser;
+
+    if (!isSuperAdmin && !companyId) {
+      return []; // no company context, nothing to show
+    }
+
+    return this.prisma.role.findMany({
+      where: isSuperAdmin && !companyId ? {} : { companyId: companyId! },
       select: {
         id: true,
         name: true,
         description: true,
+        companyId: true,
         menuVisibility: {
           select: { id: true, menuKey: true, visible: true },
           orderBy: { menuKey: 'asc' },
@@ -18,7 +29,6 @@ export class RolesService {
       },
       orderBy: { name: 'asc' },
     });
-    return roles;
   }
 
   async updateMenuConfig(
