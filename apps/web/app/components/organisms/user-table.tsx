@@ -2,17 +2,7 @@
 
 import { Avatar } from '@/app/components/atoms/avatar';
 import { Badge } from '@/app/components/atoms/badge';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  department: string | null;
-  isActive: boolean;
-  roles: string[];
-}
+import { User } from '@/app/features/users/types';
 
 interface UserTableProps {
   users: User[];
@@ -60,32 +50,58 @@ export function UserTable({ users, isLoading }: UserTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-border/30 bg-secondary">
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Department</th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Name
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Email
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Department
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Role
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Status
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/30">
           {users.map((user) => (
-            <tr key={user.id} className="transition-colors hover:bg-secondary/50">
+            <tr
+              key={user.id}
+              className="transition-colors hover:bg-secondary/50"
+            >
               <td className="px-4 py-2.5">
                 <div className="flex items-center gap-3">
-                  <Avatar name={`${user.firstName} ${user.lastName}`.trim() || user.username} size="sm" />
+                  <Avatar
+                    name={
+                      `${user.firstName} ${user.lastName}`.trim() ||
+                      user.username
+                    }
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
-                      {`${user.firstName} ${user.lastName}`.trim() || user.username}
+                      {`${user.firstName} ${user.lastName}`.trim() ||
+                        user.username}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{user.username}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {user.username}
+                    </p>
                   </div>
                 </div>
               </td>
               <td className="px-4 py-2.5">
-                <span className="font-mono text-sm text-foreground">{user.email}</span>
+                <span className="font-mono text-sm text-foreground">
+                  {user.email}
+                </span>
               </td>
               <td className="px-4 py-2.5">
-                <span className="text-sm text-foreground">{user.department ?? '—'}</span>
+                <span className="text-sm text-foreground">
+                  {user.department?.name ?? '—'}
+                </span>
               </td>
               <td className="px-4 py-2.5">
                 {user.roles.length > 0 ? (
