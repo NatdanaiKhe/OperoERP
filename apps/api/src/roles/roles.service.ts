@@ -16,7 +16,10 @@ export class RolesService {
     }
 
     return this.prisma.role.findMany({
-      where: isSuperAdmin && !companyId ? {} : { companyId: companyId! },
+      where:
+        isSuperAdmin && !companyId
+          ? {}
+          : { companyId: companyId!, NOT: { name: 'superadmin' } },
       select: {
         id: true,
         name: true,

@@ -53,8 +53,8 @@ export class AuthController {
 
   @Get('users')
   @Roles('admin', 'superadmin')
-  async listUsers() {
-    return this.authService.listUsers();
+  async listUsers(@CurrentUser() user: JwtPayload) {
+    return this.authService.listUsers(user.companyId);
   }
 
   @Post('invite')

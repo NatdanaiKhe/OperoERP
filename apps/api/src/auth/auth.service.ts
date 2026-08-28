@@ -173,8 +173,12 @@ export class AuthService {
     return this.profile(userId);
   }
 
-  async listUsers() {
+  async listUsers(companyId: string) {
     const users = await this.prisma.user.findMany({
+      where: {
+        userRoles: { some: { role: { companyId: companyId } } },
+        NOT: { userRoles: { some: { role: { name: 'superadmin' } } } },
+      },
       select: {
         id: true,
         username: true,
