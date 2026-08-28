@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,6 +17,7 @@ import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   CurrentUser,
   type JwtPayload,
@@ -41,10 +43,18 @@ export class AuthController {
     return this.authService.profile(user.userId);
   }
 
+  @Patch('profile')
+  async updateProfile(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(user.userId, dto);
+  }
+
   @Get('users')
   @Roles('admin', 'superadmin')
-  async listUsers() {
-    return this.authService.listUsers();
+  async listUsers(@CurrentUser() user: JwtPayload) {
+    return this.authService.listUsers(user.companyId);
   }
 
   @Post('invite')

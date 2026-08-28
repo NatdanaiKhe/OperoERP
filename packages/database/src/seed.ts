@@ -230,6 +230,8 @@ const MENU_KEYS = [
   'approvals',
   'reports',
   'quick_action',
+  'company_settings',
+  'menu_visibility',
 ] as const;
 
 // Default menu visibility per role. All hidden by default —

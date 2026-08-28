@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -16,7 +16,10 @@ export class RolesService {
     }
 
     return this.prisma.role.findMany({
-      where: isSuperAdmin && !companyId ? {} : { companyId: companyId! },
+      where:
+        isSuperAdmin && !companyId
+          ? {}
+          : { companyId: companyId!, NOT: { name: 'superadmin' } },
       select: {
         id: true,
         name: true,
@@ -34,7 +37,21 @@ export class RolesService {
   async updateMenuConfig(
     roleId: string,
     items: { menuKey: string; visible: boolean }[],
+    requester: { companyId: string | null; isSuperAdmin: boolean },
   ) {
+    // Scope check: admins may only edit roles in their own company.
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      select: { companyId: true },
+    });
+    if (!role) throw new NotFoundException('Role not found');
+    if (
+      !requester.isSuperAdmin &&
+      role.companyId !== requester.companyId
+    ) {
+      throw new ForbiddenException('Insufficient role');
+    }
+
     // Upsert each menu visibility entry.
     for (const item of items) {
       await this.prisma.menuVisibility.upsert({

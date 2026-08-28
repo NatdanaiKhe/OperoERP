@@ -20,13 +20,23 @@ import { useProfile } from '@/app/features/auth/hooks';
 import { cn } from '@/app/lib/utils';
 
 const ALL_NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, menuKey: 'dashboard' },
-  { label: 'User Management', href: '/dashboard/users', icon: UserCog, menuKey: 'user_management' },
-  { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
-  { label: 'Products', href: '/dashboard/products', icon: Package, menuKey: 'products' },
-  { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart, menuKey: 'sales' },
-  { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck, menuKey: 'approvals' },
-  { label: 'Reports', href: '/dashboard/reports', icon: FileText, menuKey: 'reports' },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+    menuKey: 'dashboard',
+  },
+  {
+    label: 'User Management',
+    href: '/dashboard/users',
+    icon: UserCog,
+    menuKey: 'user_management',
+  },
+  // { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
+  // { label: 'Products', href: '/dashboard/products', icon: Package, menuKey: 'products' },
+  // { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart, menuKey: 'sales' },
+  // { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck, menuKey: 'approvals' },
+  // { label: 'Reports', href: '/dashboard/reports', icon: FileText, menuKey: 'reports' },
 ] as const;
 
 interface SidebarProps {
@@ -39,7 +49,9 @@ export function Sidebar({ open, onNavClick }: SidebarProps) {
   const menuConfig = profile?.menuConfig ?? [];
   const showQuickAction = menuConfig.includes('quick_action');
 
-  const visibleNav = ALL_NAV.filter((item) => menuConfig.includes(item.menuKey));
+  const visibleNav = ALL_NAV.filter((item) =>
+    menuConfig.includes(item.menuKey),
+  );
 
   return (
     <aside

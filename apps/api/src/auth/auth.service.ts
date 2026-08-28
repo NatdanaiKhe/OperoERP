@@ -15,6 +15,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import { NotificationService } from '@/notification/notification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { InviteDto } from './dto/invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -121,6 +122,7 @@ export class AuthService {
             role: {
               select: {
                 name: true,
+                companyId: true,
                 menuVisibility: { select: { menuKey: true, visible: true } },
               },
             },
@@ -146,6 +148,7 @@ export class AuthService {
       lastName: user.lastName,
       isActive: user.isActive,
       lastLogin: user.lastLogin,
+      companyId: user.userRoles[0]?.role.companyId ?? null,
       userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
       menuConfig: [...visibleKeys],
     };
@@ -157,8 +160,25 @@ export class AuthService {
     return result;
   }
 
-  async listUsers() {
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { firstName: dto.firstName, lastName: dto.lastName },
+    });
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
+    return this.profile(userId);
+  }
+
+  async listUsers(companyId: string) {
     const users = await this.prisma.user.findMany({
+      where: {
+        userRoles: { some: { role: { companyId: companyId } } },
+        NOT: { userRoles: { some: { role: { name: 'superadmin' } } } },
+      },
       select: {
         id: true,
         username: true,

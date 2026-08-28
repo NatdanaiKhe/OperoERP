@@ -11,7 +11,7 @@ import { useUsers } from '@/app/features/users/hooks';
 import { useProfile } from '@/app/features/auth/hooks';
 
 export default function UsersPage() {
-  const { data: users, isLoading } = useUsers();
+  const { data: users, isLoading, isError } = useUsers();
   const { data: profile } = useProfile();
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -31,7 +31,14 @@ export default function UsersPage() {
     const q = search.toLowerCase().trim();
     if (!q) return users;
     return users.filter((u) =>
-      [u.firstName, u.lastName, u.email, u.department, u.username, ...u.roles]
+      [
+        u.firstName,
+        u.lastName,
+        u.email,
+        u.username,
+        u.department?.name,
+        ...u.roles,
+      ]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q)),
     );
@@ -45,7 +52,9 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">User Management</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            User Management
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage user accounts, roles, and invitations.
           </p>
@@ -66,7 +75,13 @@ export default function UsersPage() {
         />
       </div>
 
-      <UserTable users={filtered} isLoading={isLoading} />
+      {isError ? (
+        <p className="text-sm text-destructive">
+          Failed to load users. Please try again.
+        </p>
+      ) : (
+        <UserTable users={filtered} isLoading={isLoading} />
+      )}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
