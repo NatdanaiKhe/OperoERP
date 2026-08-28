@@ -1,0 +1,24 @@
+info:
+  name: Update Menu Config
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/roles/role-uuid-1/menu-config"
+  body:
+    type: json
+    data: |-
+      {
+        "items": [
+          { "menuKey": "dashboard", "visible": true },
+          { "menuKey": "user_management", "visible": false }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -22,7 +22,7 @@ export class InviteDto {
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  department!: string;
+  departmentId!: string;
 
   @IsString()
   @MinLength(1)

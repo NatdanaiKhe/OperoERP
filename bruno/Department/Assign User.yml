@@ -1,0 +1,15 @@
+info:
+  name: Assign User
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/department/{{departmentId}}/users/user-uuid-1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

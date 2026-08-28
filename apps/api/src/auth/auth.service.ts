@@ -15,10 +15,13 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import { NotificationService } from '@/notification/notification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { InviteDto } from './dto/invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { Request } from 'express';
+import { JwtPayload } from '@/common/decorators/current-user.decorator';
+import { isSuperAdmin } from '@/common/utils/auth.utils';
 
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_TTL_DAYS = 30;
@@ -50,7 +53,9 @@ export class AuthService {
         id: true,
         password: true,
         isActive: true,
-        userRoles: { select: { role: { select: { name: true } } } },
+        userRoles: {
+          select: { role: { select: { name: true, companyId: true } } },
+        },
       },
     });
 
@@ -117,6 +122,7 @@ export class AuthService {
             role: {
               select: {
                 name: true,
+                companyId: true,
                 menuVisibility: { select: { menuKey: true, visible: true } },
               },
             },
@@ -142,6 +148,7 @@ export class AuthService {
       lastName: user.lastName,
       isActive: user.isActive,
       lastLogin: user.lastLogin,
+      companyId: user.userRoles[0]?.role.companyId ?? null,
       userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
       menuConfig: [...visibleKeys],
     };
@@ -153,8 +160,25 @@ export class AuthService {
     return result;
   }
 
-  async listUsers() {
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { firstName: dto.firstName, lastName: dto.lastName },
+    });
+    try {
+      await this.cache.del(`profile:${userId}`);
+    } catch {
+      // Cache unavailable — DB write already succeeded
+    }
+    return this.profile(userId);
+  }
+
+  async listUsers(companyId: string) {
     const users = await this.prisma.user.findMany({
+      where: {
+        userRoles: { some: { role: { companyId: companyId } } },
+        NOT: { userRoles: { some: { role: { name: 'superadmin' } } } },
+      },
       select: {
         id: true,
         username: true,
@@ -211,36 +235,40 @@ export class AuthService {
 
     const username = await this.generateUniqueUsername(dto.email);
 
-    let user;
-    try {
-      user = await this.prisma.user.create({
-        data: {
-          username,
-          email: dto.email,
-          password: null,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          department: dto.department,
-          isActive: false,
-          userRoles: {
-            create: {
-              role: { connect: { name: dto.role } },
-            },
-          },
-        },
-      });
-    } catch (err) {
-      // P2025 = role not found (the connect failed).
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        (err as { code: string }).code === 'P2025'
-      ) {
-        throw new BadRequestException('Invalid role');
-      }
-      throw err;
+    // Resolve the invitee's company via their department, then look the role
+    // up scoped to that company. A role belonging to any other company simply
+    // doesn't resolve here, so cross-company assignments are rejected at the
+    // service layer (the schema can't express this — User has no companyId FK).
+    const department = await this.prisma.department.findUnique({
+      where: { id: dto.departmentId },
+      select: { companyId: true },
+    });
+    if (!department) {
+      throw new BadRequestException('Invalid department');
     }
+
+    const role = await this.prisma.role.findFirst({
+      where: { name: dto.role, companyId: department.companyId },
+      select: { id: true },
+    });
+    if (!role) {
+      throw new BadRequestException('Invalid role');
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        username,
+        email: dto.email,
+        password: null,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        departmentId: dto.departmentId,
+        isActive: false,
+        userRoles: {
+          create: { roleId: role.id },
+        },
+      },
+    });
 
     const raw = await this.generateTokenRecord(
       user.id,
@@ -343,8 +371,18 @@ export class AuthService {
     });
   }
 
-  async login(userId: string, roles: string[], req?: Request) {
-    const tokens = await this.generateAccessAndRefreshToken(userId, roles);
+  async login(
+    userId: string,
+    roles: string[],
+    companyId: string,
+    req?: Request,
+  ) {
+    const tokens = await this.generateAccessAndRefreshToken(
+      userId,
+      roles,
+      companyId,
+      isSuperAdmin(roles),
+    );
     await this.auditLog.log({
       action: AuditAction.LOGIN_SUCCESS,
       userId,
@@ -368,7 +406,9 @@ export class AuthService {
         user: {
           select: {
             isActive: true,
-            userRoles: { select: { role: { select: { name: true } } } },
+            userRoles: {
+              select: { role: { select: { name: true, companyId: true } } },
+            },
           },
         },
       },
@@ -402,9 +442,13 @@ export class AuthService {
     }
 
     const roles = stored.user.userRoles.map((ur) => ur.role.name);
+    const companyId = stored.user.userRoles[0]?.role.companyId ?? null;
+
     const tokens = await this.generateAccessAndRefreshToken(
       stored.userId,
       roles,
+      companyId,
+      isSuperAdmin(roles),
     );
 
     await this.auditLog.log({
@@ -571,19 +615,30 @@ export class AuthService {
     return { id: token.id, userId: token.userId };
   }
 
-  private async generateAccessAndRefreshToken(userId: string, roles: string[]) {
-    const accessToken = this.generateAccessToken({ userId, roles });
+  private async generateAccessAndRefreshToken(
+    userId: string,
+    roles: string[],
+    companyId: string,
+    isSuperAdmin: boolean,
+  ) {
+    const accessToken = this.generateAccessToken({
+      userId,
+      roles,
+      companyId,
+      isSuperAdmin,
+    });
     const refreshToken = this.generateToken(40);
     const hashedRefresh = this.hashToken(refreshToken);
     await this.persistRefreshToken(userId, hashedRefresh);
     return { accessToken, refreshToken };
   }
 
-  private generateAccessToken(payload: { userId: string; roles: string[] }) {
+  private generateAccessToken(payload: JwtPayload) {
     return this.jwt.sign(
       {
         sub: payload.userId,
         roles: payload.roles,
+        companyId: payload.companyId,
       },
       {
         expiresIn: this.config.getOrThrow<string>(

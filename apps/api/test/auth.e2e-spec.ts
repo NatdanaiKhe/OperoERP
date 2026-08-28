@@ -34,11 +34,15 @@ function createMockPrisma() {
   const users = new Map<string, Record<string, unknown>>();
   const refreshTokens = new Map<string, Record<string, unknown>>();
   const tokens = new Map<string, Record<string, unknown>>();
+  const departments = new Map<string, Record<string, unknown>>();
+  const roles = new Map<string, Record<string, unknown>>();
   let nextUserId = 1;
   let nextTokenId = 1;
   let nextRefreshTokenId = 1;
 
   return {
+    _seed: { departments, roles },
+
     user: {
       findUnique: jest
         .fn()
@@ -71,11 +75,16 @@ function createMockPrisma() {
         .mockImplementation((args: { data: Record<string, unknown> }) => {
           const id = String(nextUserId++);
           const data = { ...args.data };
-          // Extract role from nested userRoles.create.role.connect.name
+          // Extract role name from nested userRoles.create.roleId (new flow)
+          // or the legacy role.connect.name shape (test seeding).
           let roleName = 'user';
           const userRoles = data.userRoles as {
-            create?: { role?: { connect?: { name?: string } } };
+            create?: { roleId?: string; role?: { connect?: { name?: string } } };
           } | undefined;
+          if (userRoles?.create?.roleId) {
+            const seeded = roles.get(userRoles.create.roleId);
+            if (seeded) roleName = seeded.name as string;
+          }
           if (userRoles?.create?.role?.connect?.name) {
             roleName = userRoles.create.role.connect.name;
           }
@@ -99,6 +108,30 @@ function createMockPrisma() {
             const user = users.get(args.where.id);
             if (user) Object.assign(user, args.data);
             return Promise.resolve(user);
+          },
+        ),
+    },
+
+    department: {
+      findUnique: jest
+        .fn()
+        .mockImplementation((args: { where: { id: string } }) =>
+          Promise.resolve(departments.get(args.where.id) ?? null),
+        ),
+    },
+
+    role: {
+      findFirst: jest
+        .fn()
+        .mockImplementation(
+          (args: { where: { name?: string; companyId?: string } }) => {
+            const { name, companyId } = args.where;
+            for (const r of roles.values()) {
+              if (r.name === name && r.companyId === companyId) {
+                return Promise.resolve(r);
+              }
+            }
+            return Promise.resolve(null);
           },
         ),
     },
@@ -241,6 +274,18 @@ describe('Auth (e2e)', () => {
       },
     });
 
+    // Seed the org data the invite flow validates against: a department and
+    // the 'user' role, both in the same company.
+    mockPrisma._seed.departments.set('dept-uuid-1', {
+      id: 'dept-uuid-1',
+      companyId: 'company-1',
+    });
+    mockPrisma._seed.roles.set('role-user', {
+      id: 'role-user',
+      name: 'user',
+      companyId: 'company-1',
+    });
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -299,7 +344,7 @@ describe('Auth (e2e)', () => {
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
-        department: 'Sales',
+        departmentId: 'dept-uuid-1',
         role: 'user',
       })
       .expect(201);
@@ -320,7 +365,7 @@ describe('Auth (e2e)', () => {
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
-        department: 'Sales',
+        departmentId: 'dept-uuid-1',
         role: 'user',
       })
       .expect(401);

@@ -10,6 +10,7 @@ import 'dotenv/config';
 import { PrismaClient } from './generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { validateEnv } from '@opero/config';
+import * as bcrypt from 'bcrypt';
 
 const appEnv = validateEnv(process.env);
 
@@ -204,6 +205,21 @@ const roles: RoleDef[] = [
   },
 ];
 
+const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL ?? 'admin@opero.local';
+const SUPERADMIN_USERNAME = process.env.SUPERADMIN_USERNAME ?? 'superadmin';
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD ?? '12345678';
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin.user@opero.local';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '12345678';
+
+const DEFAULT_COMPANY_ID = 'cmtb11dbw0000206g030qfvdd';
+
+const DEFAULT_COMPANY = {
+  name: 'Opero',
+  description: 'Default company',
+};
+
 // Configurable menu keys (must match the frontend sidebar keys).
 const MENU_KEYS = [
   'dashboard',
@@ -214,6 +230,8 @@ const MENU_KEYS = [
   'approvals',
   'reports',
   'quick_action',
+  'company_settings',
+  'menu_visibility',
 ] as const;
 
 // Default menu visibility per role. All hidden by default —
@@ -221,10 +239,25 @@ const MENU_KEYS = [
 const MENU_DEFAULTS: Record<string, string[]> = {
   superadmin: [...MENU_KEYS],
   admin: [...MENU_KEYS],
-  manager: ['dashboard', 'customers', 'products', 'sales', 'approvals', 'reports', 'quick_action'],
+  manager: [
+    'dashboard',
+    'customers',
+    'products',
+    'sales',
+    'approvals',
+    'reports',
+    'quick_action',
+  ],
   user: ['dashboard', 'customers', 'products'],
   sales_representative: ['dashboard', 'customers', 'sales', 'reports'],
-  sales_manager: ['dashboard', 'customers', 'sales', 'approvals', 'reports', 'quick_action'],
+  sales_manager: [
+    'dashboard',
+    'customers',
+    'sales',
+    'approvals',
+    'reports',
+    'quick_action',
+  ],
   warehouse_staff: ['dashboard', 'products', 'sales'],
   accountant: ['dashboard', 'reports', 'customers'],
 };
@@ -242,12 +275,37 @@ async function main() {
   }
   console.log(`Seeded ${permissions.length} permissions.`);
 
-  // 2. Seed roles and link their permissions.
+  // 2. Seed default company.
+  const company = await prisma.company.upsert({
+    where: { id: DEFAULT_COMPANY_ID },
+    update: {
+      name: DEFAULT_COMPANY.name,
+      description: DEFAULT_COMPANY.description,
+    },
+    create: {
+      id: DEFAULT_COMPANY_ID,
+      name: DEFAULT_COMPANY.name,
+      description: DEFAULT_COMPANY.description,
+    },
+  });
+
+  console.log(`Seeded company "${company.name}".`);
+
+  // 3. Seed roles (company-scoped) and link their permissions.
   for (const r of roles) {
     const role = await prisma.role.upsert({
-      where: { name: r.name },
+      where: {
+        companyId_name: {
+          companyId: DEFAULT_COMPANY_ID,
+          name: r.name,
+        },
+      },
       update: { description: r.description },
-      create: { name: r.name, description: r.description },
+      create: {
+        name: r.name,
+        description: r.description,
+        companyId: DEFAULT_COMPANY_ID,
+      },
     });
 
     for (const permName of r.permissions) {
@@ -271,9 +329,135 @@ async function main() {
     );
   }
 
-  // 3. Seed menu visibility defaults per role (fail-closed: all hidden by default).
+  // 4. Seed default department — superadmin needs a company via department
+  // (User has no direct companyId FK; the RBAC invariant derives it from
+  // User.department.companyId).
+  const department = await prisma.department.upsert({
+    where: {
+      companyId_name: { companyId: DEFAULT_COMPANY_ID, name: 'Head Office' },
+    },
+    update: {},
+    create: {
+      name: 'Head Office',
+      companyId: DEFAULT_COMPANY_ID,
+    },
+  });
+
+  console.log(`Seeded department "${department.name}".`);
+
+  // 5. Seed admin user.
+  // Superadmin
+  if (!SUPERADMIN_PASSWORD) {
+    throw new Error('SUPERADMIN_PASSWORD environment variable is required.');
+  }
+
+  const passwordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, 12);
+
+  const superadmin = await prisma.user.upsert({
+    where: { email: SUPERADMIN_EMAIL },
+    update: {
+      username: SUPERADMIN_USERNAME,
+      firstName: 'Super',
+      lastName: 'Admin',
+      departmentId: department.id,
+      isActive: true,
+    },
+    create: {
+      username: SUPERADMIN_USERNAME,
+      email: SUPERADMIN_EMAIL,
+      password: passwordHash,
+      firstName: 'Super',
+      lastName: 'Admin',
+      departmentId: department.id,
+      isActive: true,
+    },
+  });
+
+  console.log(`Seeded superadmin "${superadmin.username}".`);
+
+  // admin user
+  if (!ADMIN_PASSWORD) {
+    throw new Error('ADMIN_PASSWORD environment variable is required.');
+  }
+
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: {
+      username: ADMIN_USERNAME,
+      firstName: 'Admin',
+      lastName: 'User',
+      departmentId: department.id,
+      isActive: true,
+    },
+    create: {
+      username: ADMIN_USERNAME,
+      email: ADMIN_EMAIL,
+      password: adminPasswordHash,
+      firstName: 'Admin',
+      lastName: 'User',
+      departmentId: department.id,
+      isActive: true,
+    },
+  });
+
+  console.log(`Seeded admin "${adminUser.username}".`);
+
+  // 6. Assign admin role.
+  const superadminRole = await prisma.role.findFirst({
+    where: { name: 'superadmin', companyId: DEFAULT_COMPANY_ID },
+  });
+
+  if (!superadminRole) {
+    throw new Error('Superadmin role was not found.');
+  }
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: superadmin.id,
+        roleId: superadminRole.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: superadmin.id,
+      roleId: superadminRole.id,
+    },
+  });
+
+  const adminRole = await prisma.role.findFirst({
+    where: { name: 'admin', companyId: DEFAULT_COMPANY_ID },
+  });
+
+  if (!adminRole) {
+    throw new Error('Admin role was not found.');
+  }
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: adminUser.id,
+        roleId: adminRole.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      roleId: adminRole.id,
+    },
+  });
+
+  console.log(`Assigned admin role to "${adminUser.username}".`);
+
+  console.log(`Assigned superadmin role to "${superadmin.username}".`);
+
+  // 7. Seed menu visibility defaults per role (fail-closed: all hidden by default).
   for (const [roleName, visibleKeys] of Object.entries(MENU_DEFAULTS)) {
-    const role = await prisma.role.findUnique({ where: { name: roleName } });
+    const role = await prisma.role.findFirst({
+      where: { name: roleName, companyId: DEFAULT_COMPANY_ID },
+    });
     if (!role) {
       console.warn(`Skipping menu defaults for unknown role "${roleName}".`);
       continue;

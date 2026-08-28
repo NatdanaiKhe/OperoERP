@@ -6,6 +6,8 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 interface JwtPayload {
   sub: string;
   roles: string[];
+  companyId: string;
+  isSuperAdmin: boolean;
 }
 
 @Injectable()
@@ -22,6 +24,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       roles: payload.roles,
+      companyId: payload.companyId,
+      isSuperAdmin: payload.isSuperAdmin,
     };
   }
 }

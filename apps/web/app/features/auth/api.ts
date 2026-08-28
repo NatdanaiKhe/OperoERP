@@ -27,3 +27,13 @@ export async function refresh(): Promise<LoginResponse> {
 export async function fetchProfile(): Promise<Profile> {
   return apiFetch<Profile>('/auth/profile');
 }
+
+export async function updateProfile(payload: {
+  firstName?: string;
+  lastName?: string;
+}): Promise<Profile> {
+  return apiFetch<Profile>('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

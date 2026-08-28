@@ -1,0 +1,21 @@
+info:
+  name: Update Company
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/company/{{companyId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Acme Corp"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
