@@ -1,10 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card } from '@/app/components/atoms/card';
 import { Badge } from '@/app/components/atoms/badge';
-import { useProfile } from '@/app/features/auth/hooks';
+import { Card } from '@/app/components/atoms/card';
 import { useRoles, useUpdateMenuConfig } from '@/app/features/roles/hooks';
 import type { RoleWithMenu } from '@/app/features/roles/types';
 
@@ -19,25 +16,15 @@ const MENU_LABELS: { key: string; label: string }[] = [
   { key: 'quick_action', label: 'Quick Action' },
 ];
 
-export default function MenuConfigPage() {
-  const { data: profile } = useProfile();
+function MenuVisibilitySettings() {
   const { data: roles, isLoading } = useRoles();
   const { mutateAsync: updateConfig, isPending } = useUpdateMenuConfig();
-  const router = useRouter();
 
-  const rolesList = profile?.userRoles?.map((ur) => ur.role.name) ?? [];
-  const isSuperadmin = rolesList.includes('superadmin');
-  const canAccess = (profile?.menuConfig ?? []).includes('user_management') || isSuperadmin;
-
-  useEffect(() => {
-    if (profile && !canAccess) {
-      router.replace('/dashboard');
-    }
-  }, [profile, canAccess, router]);
-
-  if (profile && !canAccess) return null;
-
-  async function handleToggle(roleId: string, menuKey: string, currentVisible: boolean) {
+  async function handleToggle(
+    roleId: string,
+    menuKey: string,
+    currentVisible: boolean,
+  ) {
     // Toggle one key: send the full list for that role with the toggled value.
     const role = roles?.find((r) => r.id === roleId);
     if (!role) return;
@@ -53,12 +40,10 @@ export default function MenuConfigPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Menu Visibility</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure which menu items each role can see. All items are hidden by default.
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Configure which menu items each role can see. All items are hidden by
+        default.
+      </p>
 
       {isLoading ? (
         <Card className="h-96 animate-pulse bg-muted/50" />
@@ -135,3 +120,5 @@ export default function MenuConfigPage() {
     </div>
   );
 }
+
+export default MenuVisibilitySettings;
