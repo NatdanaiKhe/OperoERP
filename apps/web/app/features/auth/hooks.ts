@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from './store';
-import { login, logout, refresh, fetchProfile } from './api';
+import { login, logout, refresh, fetchProfile, updateProfile } from './api';
 
 export const PROFILE_KEY = ['auth', 'profile'] as const;
 const REFRESH_KEY = ['auth', 'refresh'] as const;
@@ -46,6 +46,16 @@ export function useProfile() {
   });
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateProfile,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PROFILE_KEY });
+    },
+  });
+}
+
 export function useLogin() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -79,4 +89,15 @@ export function useLogout() {
       router.push('/login');
     },
   });
+}
+
+export function useCanAccess(menu: string) {
+  const { data: profile, isLoading } = useProfile();
+
+  const canAccess = profile?.menuConfig?.includes(menu) ?? false;
+
+  return {
+    canAccess,
+    isLoading,
+  };
 }

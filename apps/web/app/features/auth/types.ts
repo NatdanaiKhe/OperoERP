@@ -10,6 +10,7 @@ export interface Profile {
   lastName: string | null;
   isActive: boolean;
   lastLogin: string | null;
+  companyId: string | null;
   userRoles: UserRole[];
   menuConfig: string[];
 }
