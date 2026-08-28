@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { UpdateMenuConfigDto } from './dto/update-menu-config.dto';
@@ -25,12 +24,15 @@ export class RolesController {
   }
 
   @Put(':id/menu-config')
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   async updateMenuConfig(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() dto: UpdateMenuConfigDto,
-    @Req() _req: Request,
   ) {
-    return this.rolesService.updateMenuConfig(id, dto.items);
+    return this.rolesService.updateMenuConfig(id, dto.items, {
+      companyId: user.companyId,
+      isSuperAdmin: user.isSuperAdmin,
+    });
   }
 }
