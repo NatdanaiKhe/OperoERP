@@ -16,7 +16,10 @@ import type { Request } from 'express';
 
 jest.mock('bcrypt');
 
-const reqMock = { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } } as Request;
+const reqMock = {
+  ip: '127.0.0.1',
+  headers: { 'user-agent': 'jest' },
+} as Request;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -207,7 +210,7 @@ describe('AuthService', () => {
     expect(notificationMock.sendInviteEmail).toHaveBeenCalled();
   });
 
-  it('throws BadRequestException when role is not in the user\'s company', async () => {
+  it("throws BadRequestException when role is not in the user's company", async () => {
     prismaMock.user.findUnique
       .mockResolvedValueOnce(null) // email check
       .mockResolvedValueOnce(null); // username check
@@ -461,7 +464,7 @@ describe('AuthService', () => {
 
   it('persists the refresh token on login', async () => {
     prismaMock.refreshToken.create.mockResolvedValue({});
-    await service.login('user-1', ['user']);
+    await service.login('user-1', ['user'], 'company-1');
     expect(prismaMock.refreshToken.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: 'user-1',

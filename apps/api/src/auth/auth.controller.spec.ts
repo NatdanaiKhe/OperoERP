@@ -3,11 +3,33 @@ import { ConfigService } from '@nestjs/config';
 import { AuthController } from '@/auth/auth.controller';
 import { AuthService } from '@/auth/auth.service';
 import type { Request, Response } from 'express';
+import type { JwtPayload } from '@/common/decorators/current-user.decorator';
 
 const reqMock = {
   ip: '127.0.0.1',
   headers: { 'user-agent': 'jest' },
 } as Request;
+
+const userMock: JwtPayload = {
+  userId: 'u1',
+  roles: ['user'],
+  companyId: 'company-1',
+  isSuperAdmin: false,
+};
+
+const adminUser: JwtPayload = {
+  userId: 'u1',
+  roles: ['admin'],
+  companyId: 'company-1',
+  isSuperAdmin: false,
+};
+
+const superadminUser: JwtPayload = {
+  userId: 'u1',
+  roles: ['superadmin'],
+  companyId: 'company-1',
+  isSuperAdmin: true,
+};
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -158,7 +180,7 @@ describe('AuthController', () => {
     expect(authServiceMock.updateLastLogin).toHaveBeenCalledWith('user-1');
   });
 
-  it('lists users (admin only)', async () => {
+  it('lists users for admin from their company', async () => {
     authServiceMock.listUsers.mockResolvedValue([
       {
         id: 'u1',
@@ -171,14 +193,36 @@ describe('AuthController', () => {
         roles: ['admin'],
       },
     ]);
-    const result = await controller.listUsers();
-    expect(authServiceMock.listUsers).toHaveBeenCalled();
+
+    const result = await controller.listUsers(adminUser);
+
+    expect(authServiceMock.listUsers).toHaveBeenCalledWith('company-1');
+    expect(result).toHaveLength(1);
+  });
+
+  it('lists all users for superadmin', async () => {
+    authServiceMock.listUsers.mockResolvedValue([
+      {
+        id: 'u1',
+        username: 'admin',
+        email: 'a@b.c',
+        firstName: 'Admin',
+        lastName: 'User',
+        department: 'IT',
+        isActive: true,
+        roles: ['superadmin'],
+      },
+    ]);
+
+    const result = await controller.listUsers(superadminUser);
+
+    expect(authServiceMock.listUsers).toHaveBeenCalledWith('company-1');
     expect(result).toHaveLength(1);
   });
 
   it('changes password and returns success message', async () => {
     const result = await controller.changePassword(
-      { userId: 'u1', roles: ['user'] },
+      userMock,
       {
         currentPassword: 'oldpass123',
         newPassword: 'newpass123',
