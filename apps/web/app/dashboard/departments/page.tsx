@@ -26,8 +26,8 @@ export default function DepartmentsPage() {
   const router = useRouter();
 
   const menuConfig = profile?.menuConfig ?? [];
-  // Same permission level as User Management.
-  const canAccess = menuConfig.includes('user_management');
+  // Same permission level as User Management (admin/superadmin).
+  const canAccess = menuConfig.includes('department_management');
 
   useEffect(() => {
     if (profile && !canAccess) {
