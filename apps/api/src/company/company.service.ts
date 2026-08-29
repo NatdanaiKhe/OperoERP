@@ -8,7 +8,7 @@ export class CompanyService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateCompanyDto) {
-    return this.prisma.company.create({ data: { name: dto.name } });
+    return this.prisma.company.create({ data: dto });
   }
 
   async findAll() {
