@@ -15,13 +15,10 @@
 
 # Type of Change
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Refactoring
-- [ ] Performance improvement
-- [ ] Documentation
-- [ ] Test changes
-- [ ] Chore / Maintenance
+- [ ] Feature
+- [ ] Fix
+- [ ] Refactor
+- [ ] Chore
 - [ ] Breaking change
 
 ---
@@ -40,14 +37,6 @@
 2.
 3.
 
----
-
-# Screenshots (if applicable)
-
-<!-- Add screenshots, GIFs, or videos for UI changes. -->
-
----
-
 # Checklist
 
 - [ ] Code follows project conventions
@@ -57,23 +46,17 @@
 - [ ] No sensitive information (keys, secrets, credentials) included
 - [ ] CI passes
 
-# Deployment Notes
+---
 
-- Database migration required: Yes / No
-- Environment variables added: Yes / No
-- Feature flag required: Yes / No
+# Screenshots (if applicable)
 
-### New Environment Variables
-
-| Name | Required | Description |
-| ---- | -------- | ----------- |
-|      |          |             |
+<!-- Add screenshots, GIFs, or videos for UI changes. -->
 
 ---
 
-# Rollback Plan
+## Deployment Notes
 
-<!-- How would this change be reverted if necessary? -->
+- Migration / env vars / feature flag: Yes / No (delete if none)
 
 ---
 
