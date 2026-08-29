@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TerminusModule } from '@nestjs/terminus';
+import { TerminusModule, PrismaHealthIndicator } from '@nestjs/terminus';
 import { HealthController } from '@/health/health.controller';
-import { DatabaseHealthIndicator } from '@/health/database.health';
 import { PrismaService } from '@/prisma/prisma.service';
 
 describe('HealthController', () => {
@@ -12,8 +11,11 @@ describe('HealthController', () => {
       imports: [TerminusModule],
       controllers: [HealthController],
       providers: [
-        DatabaseHealthIndicator,
-        { provide: PrismaService, useValue: { $queryRaw: jest.fn().mockResolvedValue([1]) } },
+        PrismaHealthIndicator,
+        {
+          provide: PrismaService,
+          useValue: { $queryRawUnsafe: jest.fn().mockResolvedValue([1]) },
+        },
       ],
     }).compile();
 

@@ -33,48 +33,40 @@ export class EmailProcessor extends WorkerHost {
 
   async process(job: Job): Promise<void> {
     switch (job.name) {
-      case 'invite':
-        return this.sendInvite(job.data as WelcomeEmailDto);
-      case 'reset':
-        return this.sendReset(job.data as ResetEmailDto);
+      case 'invite': {
+        const dto = job.data as WelcomeEmailDto;
+        return this.send('invite', dto.email, this.inviteTemplateId, {
+          name: dto.name,
+          email: dto.email,
+          inviteUrl: dto.inviteUrl,
+          company: dto.companyName,
+        });
+      }
+      case 'reset': {
+        const dto = job.data as ResetEmailDto;
+        return this.send('reset', dto.email, this.resetTemplateId, {
+          name: dto.name,
+          url: dto.resetUrl,
+        });
+      }
       default:
         throw new Error(`Unknown job name: ${job.name}`);
     }
   }
 
-  private async sendInvite(dto: WelcomeEmailDto): Promise<void> {
+  private async send(
+    jobName: string,
+    to: string,
+    templateId: string,
+    variables: Record<string, string>,
+  ): Promise<void> {
     const { error } = await this.resend.emails.send({
       from: this.from,
-      to: dto.email,
-      template: {
-        id: this.inviteTemplateId,
-        variables: {
-          name: dto.name,
-          email: dto.email,
-          inviteUrl: dto.inviteUrl,
-          company: dto.companyName,
-        },
-      },
+      to,
+      template: { id: templateId, variables },
     });
     if (error) {
-      throw new Error(`Failed to send invite email: ${error.message}`);
-    }
-  }
-
-  private async sendReset(dto: ResetEmailDto): Promise<void> {
-    const { error } = await this.resend.emails.send({
-      from: this.from,
-      to: dto.email,
-      template: {
-        id: this.resetTemplateId,
-        variables: {
-          name: dto.name,
-          url: dto.resetUrl,
-        },
-      },
-    });
-    if (error) {
-      throw new Error(`Failed to send reset email: ${error.message}`);
+      throw new Error(`Failed to send ${jobName} email: ${error.message}`);
     }
   }
 

@@ -1,19 +1,17 @@
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from '@nestjs/cache-manager';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import { NotificationService } from '@/notification/notification.service';
+import { CacheService } from '@/cache/cache.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { InviteDto } from './dto/invite.dto';
@@ -25,8 +23,9 @@ import { isSuperAdmin } from '@/common/utils/auth.utils';
 
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_TTL_DAYS = 30;
-// ponytail: TTL-bounded staleness for menu-config changes; add per-user invalidation when role membership changes frequently
-const PROFILE_CACHE_TTL = 60_000;
+// TTL-only staleness menu-config changes propagate in <=30s.
+// Switch to a company-scoped version key if instant propagation is ever required.
+const PROFILE_CACHE_TTL_MS = 30_000;
 // Valid bcrypt hash used to equalize timing when the email is unknown.
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('timing-equalizer', SALT_ROUNDS);
 
@@ -43,7 +42,7 @@ export class AuthService {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private notification: NotificationService,
-    @Inject(CACHE_MANAGER) private cache: Cache,
+    private cache: CacheService,
   ) {}
 
   async validateUser(email: string, password: string, req?: Request) {
@@ -100,13 +99,12 @@ export class AuthService {
   }
 
   async profile(userId: string) {
-    const cacheKey = `profile:${userId}`;
-    try {
-      const cached = await this.cache.get(cacheKey);
-      if (cached !== undefined && cached !== null) return cached;
-    } catch {
-      // Cache unavailable — fall through to Prisma
-    }
+    return this.cache.getOrSet(`profile:${userId}`, PROFILE_CACHE_TTL_MS, () =>
+      this.loadProfile(userId),
+    );
+  }
+
+  private async loadProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -152,11 +150,6 @@ export class AuthService {
       userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
       menuConfig: [...visibleKeys],
     };
-    try {
-      await this.cache.set(cacheKey, result, PROFILE_CACHE_TTL);
-    } catch {
-      // Cache unavailable — result still returned
-    }
     return result;
   }
 
@@ -165,11 +158,6 @@ export class AuthService {
       where: { id: userId },
       data: { firstName: dto.firstName, lastName: dto.lastName },
     });
-    try {
-      await this.cache.del(`profile:${userId}`);
-    } catch {
-      // Cache unavailable — DB write already succeeded
-    }
     return this.profile(userId);
   }
 
@@ -304,11 +292,6 @@ export class AuthService {
       where: { id },
       data: { usedAt: new Date() },
     });
-    try {
-      await this.cache.del(`profile:${userId}`);
-    } catch {
-      // Cache unavailable — DB write already succeeded
-    }
     await this.auditLog.log({
       action: AuditAction.INVITE_ACCEPTED,
       userId,
@@ -359,11 +342,6 @@ export class AuthService {
     });
     // Force re-login on every device after a password reset.
     await this.revokeAllForUser(userId);
-    try {
-      await this.cache.del(`profile:${userId}`);
-    } catch {
-      // Cache unavailable — DB write already succeeded
-    }
     await this.auditLog.log({
       action: AuditAction.PASSWORD_RESET,
       userId,
@@ -517,11 +495,6 @@ export class AuthService {
     });
     // Force re-login on every device after a password change.
     await this.revokeAllForUser(userId);
-    try {
-      await this.cache.del(`profile:${userId}`);
-    } catch {
-      // Cache unavailable — DB write already succeeded
-    }
   }
 
   async updateLastLogin(userId: string) {
@@ -529,11 +502,6 @@ export class AuthService {
       where: { id: userId },
       data: { lastLogin: new Date() },
     });
-    try {
-      await this.cache.del(`profile:${userId}`);
-    } catch {
-      // Cache unavailable — DB write already succeeded
-    }
   }
 
   async revokeAllForUser(userId: string) {

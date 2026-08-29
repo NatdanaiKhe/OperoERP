@@ -2,12 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { JwtPayload } from '@/common/decorators/current-user.decorator';
+import { isSuperAdmin } from '@/common/utils/auth.utils';
 
-interface JwtPayload {
+interface TokenPayload {
   sub: string;
-  roles: string[];
-  companyId: string;
-  isSuperAdmin: boolean;
+  roles: JwtPayload['roles'];
+  companyId: JwtPayload['companyId'];
 }
 
 @Injectable()
@@ -20,12 +21,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: TokenPayload): Promise<JwtPayload> {
     return {
       userId: payload.sub,
       roles: payload.roles,
       companyId: payload.companyId,
-      isSuperAdmin: payload.isSuperAdmin,
+      isSuperAdmin: isSuperAdmin(payload.roles),
     };
   }
 }
