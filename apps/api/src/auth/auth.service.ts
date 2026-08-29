@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -501,6 +502,28 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { lastLogin: new Date() },
+    });
+  }
+
+  // Soft delete: keep the row (role/department intact), mark deleted,
+  // and kill every active session so a deleted user is logged out everywhere.
+  async softDeleteUser(userId: string, req?: Request): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false, deletedAt: new Date() },
+    });
+    await this.revokeAllForUser(userId);
+    await this.auditLog.log({
+      action: AuditAction.USER_DELETED,
+      userId,
+      req,
     });
   }
 

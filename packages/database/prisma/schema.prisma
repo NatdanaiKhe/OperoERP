@@ -21,6 +21,7 @@ model User {
   firstName String  @map("first_name")
   lastName  String  @map("last_name")
   isActive  Boolean @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
 
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
@@ -35,6 +36,7 @@ model User {
   tokens        Token[]
 
   @@index([departmentId])
+  @@index([deletedAt])
   @@map("users")
 }
 

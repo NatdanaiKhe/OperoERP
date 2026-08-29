@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
   Req,
@@ -55,6 +57,13 @@ export class AuthController {
   @Roles('admin', 'superadmin')
   async listUsers(@CurrentUser() user: JwtPayload) {
     return this.authService.listUsers(user.companyId);
+  }
+
+  @Delete('users/:id')
+  @Roles('admin', 'superadmin')
+  async deleteUser(@Param('id') id: string, @Req() req: Request) {
+    await this.authService.softDeleteUser(id, req);
+    return { message: 'User deleted' };
   }
 
   @Post('invite')
