@@ -679,6 +679,96 @@ describe('AuthService', () => {
     expect(prismaMock.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 
+  // --- updateUser ---
+
+  describe('updateUser', () => {
+    it('updates department and role, scoped to the department company', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        departmentId: 'dept-1',
+        deletedAt: null,
+      });
+      prismaMock.department.findUnique.mockResolvedValueOnce({
+        companyId: 'company-1',
+        deletedAt: null,
+      });
+      prismaMock.role.findFirst.mockResolvedValueOnce({ id: 'role-manager' });
+      prismaMock.user.update.mockResolvedValue({});
+
+      const result = await service.updateUser(
+        'u1',
+        { departmentId: 'dept-2', role: 'manager' },
+        reqMock,
+      );
+
+      expect(prismaMock.department.findUnique).toHaveBeenCalledWith({
+        where: { id: 'dept-2' },
+        select: { companyId: true, deletedAt: true },
+      });
+      expect(prismaMock.role.findFirst).toHaveBeenCalledWith({
+        where: { name: 'manager', companyId: 'company-1' },
+        select: { id: true },
+      });
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          department: { connect: { id: 'dept-2' } },
+          userRoles: { deleteMany: {}, create: { roleId: 'role-manager' } },
+        },
+      });
+      expect(auditLogMock.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'USER_UPDATED', userId: 'u1' }),
+      );
+      expect(result).toEqual({ message: 'User updated' });
+    });
+
+    it('throws BadRequestException when there is nothing to update', async () => {
+      await expect(service.updateUser('u1', {})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for a deleted or unknown user', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.updateUser('missing', { role: 'manager' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException for an invalid department', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        departmentId: 'dept-1',
+        deletedAt: null,
+      });
+      prismaMock.department.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateUser('u1', { departmentId: 'nope' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException for a role outside the user company', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        departmentId: 'dept-1',
+        deletedAt: null,
+      });
+      prismaMock.department.findUnique.mockResolvedValueOnce({
+        companyId: 'company-1',
+        deletedAt: null,
+      });
+      prismaMock.role.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateUser('u1', { role: 'foreign_role' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+  });
+
   // --- profile ---
 
   describe('profile', () => {

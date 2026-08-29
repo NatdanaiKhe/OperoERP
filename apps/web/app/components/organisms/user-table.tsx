@@ -1,15 +1,18 @@
 'use client';
 
+import { Pencil } from 'lucide-react';
 import { Avatar } from '@/app/components/atoms/avatar';
 import { Badge } from '@/app/components/atoms/badge';
+import { Button } from '@/app/components/ui/button';
 import { User } from '@/app/features/users/types';
 
 interface UserTableProps {
   users: User[];
   isLoading: boolean;
+  onEdit?: (user: User) => void;
 }
 
-export function UserTable({ users, isLoading }: UserTableProps) {
+export function UserTable({ users, isLoading, onEdit }: UserTableProps) {
   if (isLoading) {
     return (
       <div className="overflow-hidden rounded-lg border border-border/30 bg-card">
@@ -65,6 +68,11 @@ export function UserTable({ users, isLoading }: UserTableProps) {
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Status
             </th>
+            {onEdit && (
+              <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-border/30">
@@ -117,6 +125,19 @@ export function UserTable({ users, isLoading }: UserTableProps) {
                   <Badge variant="warning">Pending</Badge>
                 )}
               </td>
+              {onEdit && (
+                <td className="px-4 py-2.5 text-right">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(user)}
+                    aria-label={`Edit ${user.firstName} ${user.lastName}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

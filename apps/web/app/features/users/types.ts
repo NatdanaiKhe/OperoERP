@@ -30,3 +30,8 @@ export interface InviteResponse {
   message: string;
   userId: string;
 }
+
+export interface UpdateUserPayload {
+  departmentId?: string;
+  role?: string;
+}

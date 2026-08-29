@@ -16,6 +16,7 @@ import { NotificationService } from '@/notification/notification.service';
 import { CacheService } from '@/cache/cache.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { InviteDto } from './dto/invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -205,16 +206,7 @@ export class AuthService {
       userRoles: { select: { role: { select: { name: true } } } },
     } satisfies Prisma.UserSelect;
 
-    const map = (u: {
-      id: string;
-      username: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      department: unknown;
-      isActive: boolean;
-      userRoles: { role: { name: string } }[];
-    }) => ({
+    const map = (u: Prisma.UserGetPayload<{ select: typeof select }>) => ({
       id: u.id,
       username: u.username,
       email: u.email,
@@ -579,6 +571,68 @@ export class AuthService {
       userId,
       req,
     });
+  }
+
+  // Edit role and/or department for an existing (non-deleted) user.
+  // Company scoping mirrors invite(): the role must belong to the user's
+  // (new) department's company.
+  async updateUser(
+    userId: string,
+    dto: UpdateUserDto,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    if (!dto.departmentId && !dto.role) {
+      throw new BadRequestException('Nothing to update');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, departmentId: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt) {
+      throw new NotFoundException('User not found');
+    }
+
+    const departmentId = dto.departmentId ?? user.departmentId;
+    let companyId: string | null = null;
+    if (departmentId) {
+      const department = await this.prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { companyId: true, deletedAt: true },
+      });
+      if (!department || department.deletedAt) {
+        throw new BadRequestException('Invalid department');
+      }
+      companyId = department.companyId;
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (dto.departmentId) {
+      data.department = { connect: { id: dto.departmentId } };
+    }
+    if (dto.role) {
+      if (!companyId) {
+        throw new BadRequestException(
+          'User has no department; assign a department first',
+        );
+      }
+      const role = await this.prisma.role.findFirst({
+        where: { name: dto.role, companyId },
+        select: { id: true },
+      });
+      if (!role) {
+        throw new BadRequestException('Invalid role for this company');
+      }
+      data.userRoles = { deleteMany: {}, create: { roleId: role.id } };
+    }
+
+    await this.prisma.user.update({ where: { id: userId }, data });
+    await this.auditLog.log({
+      action: AuditAction.USER_UPDATED,
+      userId,
+      req,
+      metadata: { role: dto.role, departmentId: dto.departmentId },
+    });
+    return { message: 'User updated' };
   }
 
   async revokeAllForUser(userId: string) {

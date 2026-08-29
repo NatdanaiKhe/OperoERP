@@ -22,6 +22,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import {
   CurrentUser,
   type JwtPayload,
@@ -62,6 +63,16 @@ export class AuthController {
     @Query() query: ListUsersQueryDto,
   ) {
     return this.authService.listUsers(user.companyId, query);
+  }
+
+  @Patch('users/:id')
+  @Roles('admin', 'superadmin')
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.updateUser(id, dto, req);
   }
 
   @Delete('users/:id')
