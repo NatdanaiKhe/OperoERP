@@ -29,6 +29,7 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -537,6 +538,113 @@ describe('AuthService', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
     expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  // --- listUsers ---
+
+  describe('listUsers', () => {
+    const userRow = (overrides: Record<string, unknown> = {}) => ({
+      id: 'u1',
+      username: 'jane',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      department: null,
+      isActive: true,
+      userRoles: [{ role: { name: 'user' } }],
+      ...overrides,
+    });
+
+    it('defaults to active, non-deleted users and excludes superadmin', async () => {
+      prismaMock.user.findMany.mockResolvedValue([userRow()]);
+
+      const result = await service.listUsers('company-1');
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deletedAt: null,
+            isActive: true,
+            NOT: {
+              userRoles: { some: { role: { name: 'superadmin' } } },
+            },
+          }),
+        }),
+      );
+      expect(result).toEqual([
+        expect.objectContaining({ id: 'u1', roles: ['user'] }),
+      ]);
+    });
+
+    it('returns inactive users with ?status=inactive', async () => {
+      prismaMock.user.findMany.mockResolvedValue([
+        userRow({ isActive: false }),
+      ]);
+
+      await service.listUsers('company-1', { status: 'inactive' });
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deletedAt: null, isActive: false }),
+        }),
+      );
+    });
+
+    it('returns deleted users with ?status=deleted', async () => {
+      prismaMock.user.findMany.mockResolvedValue([userRow()]);
+
+      await service.listUsers('company-1', { status: 'deleted' });
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deletedAt: { not: null },
+            isActive: true,
+          }),
+        }),
+      );
+    });
+
+    it('combines department and role filters', async () => {
+      prismaMock.user.findMany.mockResolvedValue([userRow()]);
+
+      await service.listUsers('company-1', {
+        department: 'dept-1',
+        role: 'manager',
+      });
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            departmentId: 'dept-1',
+            userRoles: {
+              some: { role: { name: 'manager', companyId: 'company-1' } },
+            },
+          }),
+        }),
+      );
+    });
+
+    it('returns paginated { data, total, page, limit } when limit is passed', async () => {
+      prismaMock.user.findMany.mockResolvedValue([userRow()]);
+      prismaMock.user.count.mockResolvedValue(23);
+
+      const result = await service.listUsers('company-1', {
+        page: 2,
+        limit: 10,
+      });
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 10, take: 10 }),
+      );
+      expect(prismaMock.user.count).toHaveBeenCalled();
+      expect(result).toEqual({
+        data: [expect.objectContaining({ id: 'u1' })],
+        total: 23,
+        page: 2,
+        limit: 10,
+      });
+    });
   });
 
   // --- softDeleteUser ---
