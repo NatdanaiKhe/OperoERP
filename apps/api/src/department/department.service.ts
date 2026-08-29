@@ -74,4 +74,19 @@ export class DepartmentService {
     if (!user) throw new NotFoundException('User not found');
     return this.prisma.user.update({ where: { id: userId }, data: { departmentId } });
   }
+
+  // Move every active user from one department to another — the reassignment
+  // step of the blocked-delete flow.
+  async reassignUsers(fromId: string, toId: string) {
+    if (fromId === toId) {
+      throw new ConflictException('Target department must be different');
+    }
+    await this.findOne(fromId);
+    await this.findOne(toId);
+    const result = await this.prisma.user.updateMany({
+      where: { departmentId: fromId, deletedAt: null },
+      data: { departmentId: toId },
+    });
+    return { moved: result.count };
+  }
 }

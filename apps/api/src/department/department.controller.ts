@@ -3,6 +3,7 @@ import { DepartmentService } from './department.service';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { ReassignDepartmentDto } from './dto/reassign-department.dto';
 
 @Controller('department')
 export class DepartmentController {
@@ -42,5 +43,15 @@ export class DepartmentController {
   @HttpCode(200)
   assignUser(@Param('id') id: string, @Param('userId') userId: string) {
     return this.departmentService.assignUser(userId, id);
+  }
+
+  @Post(':id/reassign')
+  @Roles('superadmin')
+  @HttpCode(200)
+  reassignUsers(
+    @Param('id') id: string,
+    @Body() dto: ReassignDepartmentDto,
+  ) {
+    return this.departmentService.reassignUsers(id, dto.targetDepartmentId);
   }
 }
