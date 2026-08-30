@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { Prisma } from 'database';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
@@ -162,24 +163,58 @@ export class AuthService {
     return this.profile(userId);
   }
 
-  async listUsers(companyId: string) {
-    const users = await this.prisma.user.findMany({
-      where: {
-        userRoles: { some: { role: { companyId: companyId } } },
-        NOT: { userRoles: { some: { role: { name: 'superadmin' } } } },
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        department: true,
-        isActive: true,
-        userRoles: { select: { role: { select: { name: true } } } },
-      },
-    });
-    return users.map((u) => ({
+  async listUsers(
+    companyId: string,
+    query: {
+      status?: 'active' | 'inactive' | 'deleted';
+      department?: string;
+      role?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
+    // Default view: active users only. Deleted/inactive users are opt-in
+    // via ?status=deleted / ?status=inactive.
+    const where: Prisma.UserWhereInput = {
+      userRoles: { some: { role: { companyId } } },
+      NOT: { userRoles: { some: { role: { name: 'superadmin' } } } },
+      deletedAt: query.status === 'deleted' ? { not: null } : null,
+    };
+    if (query.status === 'inactive') {
+      where.isActive = false;
+    } else {
+      where.isActive = true;
+    }
+    if (query.department) {
+      where.departmentId = query.department;
+    }
+    if (query.role) {
+      where.userRoles = {
+        some: { role: { name: query.role, companyId } },
+      };
+    }
+
+    const select = {
+      id: true,
+      username: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      department: true,
+      isActive: true,
+      userRoles: { select: { role: { select: { name: true } } } },
+    } satisfies Prisma.UserSelect;
+
+    const map = (u: {
+      id: string;
+      username: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      department: unknown;
+      isActive: boolean;
+      userRoles: { role: { name: string } }[];
+    }) => ({
       id: u.id,
       username: u.username,
       email: u.email,
@@ -188,7 +223,26 @@ export class AuthService {
       department: u.department,
       isActive: u.isActive,
       roles: u.userRoles.map((ur) => ur.role.name),
-    }));
+    });
+
+    // Paginated callers get { data, total, page, limit }; plain array stays
+    // the default so existing callers are unaffected.
+    if (query.limit) {
+      const page = query.page ?? 1;
+      const [users, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          select,
+          skip: (page - 1) * query.limit,
+          take: query.limit,
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+      return { data: users.map(map), total, page, limit: query.limit };
+    }
+
+    const users = await this.prisma.user.findMany({ where, select });
+    return users.map(map);
   }
 
   async invite(dto: InviteDto, req?: Request): Promise<{ userId: string }> {
