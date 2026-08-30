@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -30,7 +29,6 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
-      count: jest.fn(),
       count: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),

@@ -217,9 +217,7 @@ describe('AuthController', () => {
     ]);
 
     const result = await controller.listUsers(superadminUser, {});
-    const result = await controller.listUsers(superadminUser, {});
 
-    expect(authServiceMock.listUsers).toHaveBeenCalledWith('company-1', {});
     expect(authServiceMock.listUsers).toHaveBeenCalledWith('company-1', {});
     expect(result).toHaveLength(1);
   });

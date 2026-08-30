@@ -44,8 +44,7 @@ export class AuditLogService {
           ipAddress: req?.ip ?? null,
           userAgent:
             (req?.headers?.['user-agent'] as string | undefined) ?? null,
-          metadata: (metadata ?? undefined) as
-            Prisma.InputJsonValue | undefined,
+          metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
         },
       });
     } catch (err) {

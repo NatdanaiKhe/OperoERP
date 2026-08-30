@@ -3,13 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { Prisma } from 'database';
 import { Prisma } from 'database';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
@@ -217,26 +215,6 @@ export class AuthService {
       department: u.department,
       isActive: u.isActive,
       roles: u.userRoles.map((ur) => ur.role.name),
-    });
-
-    // Paginated callers get { data, total, page, limit }; plain array stays
-    // the default so existing callers are unaffected.
-    if (query.limit) {
-      const page = query.page ?? 1;
-      const [users, total] = await Promise.all([
-        this.prisma.user.findMany({
-          where,
-          select,
-          skip: (page - 1) * query.limit,
-          take: query.limit,
-        }),
-        this.prisma.user.count({ where }),
-      ]);
-      return { data: users.map(map), total, page, limit: query.limit };
-    }
-
-    const users = await this.prisma.user.findMany({ where, select });
-    return users.map(map);
     });
 
     // Paginated callers get { data, total, page, limit }; plain array stays
