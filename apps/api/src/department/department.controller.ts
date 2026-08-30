@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { DepartmentService } from './department.service';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CreateDepartmentDto } from './dto/create-department.dto';
@@ -10,7 +20,7 @@ export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
   @Post()
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   create(@Body() dto: CreateDepartmentDto) {
     return this.departmentService.create(dto);
   }
@@ -26,32 +36,29 @@ export class DepartmentController {
   }
 
   @Patch(':id')
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   update(@Param('id') id: string, @Body() dto: UpdateDepartmentDto) {
     return this.departmentService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.departmentService.remove(id);
   }
 
   @Post(':id/users/:userId')
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   @HttpCode(200)
   assignUser(@Param('id') id: string, @Param('userId') userId: string) {
     return this.departmentService.assignUser(userId, id);
   }
 
   @Post(':id/reassign')
-  @Roles('superadmin')
+  @Roles('superadmin', 'admin')
   @HttpCode(200)
-  reassignUsers(
-    @Param('id') id: string,
-    @Body() dto: ReassignDepartmentDto,
-  ) {
+  reassignUsers(@Param('id') id: string, @Body() dto: ReassignDepartmentDto) {
     return this.departmentService.reassignUsers(id, dto.targetDepartmentId);
   }
 }

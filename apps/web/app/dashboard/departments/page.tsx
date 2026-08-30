@@ -26,8 +26,8 @@ export default function DepartmentsPage() {
   const router = useRouter();
 
   const menuConfig = profile?.menuConfig ?? [];
-  // Same permission level as User Management.
-  const canAccess = menuConfig.includes('user_management');
+  // Same permission level as User Management (admin/superadmin).
+  const canAccess = menuConfig.includes('department_management');
 
   useEffect(() => {
     if (profile && !canAccess) {
@@ -148,10 +148,7 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      <form
-        onSubmit={handleCreate}
-        className="flex max-w-md items-end gap-3"
-      >
+      <form onSubmit={handleCreate} className="flex max-w-md items-end gap-3">
         <div className="flex-1">
           <label
             htmlFor="new-department"
@@ -292,10 +289,7 @@ export default function DepartmentsPage() {
               them to another department to delete it.
             </p>
 
-            <form
-              onSubmit={handleReassignAndDelete}
-              className="mt-4 space-y-4"
-            >
+            <form onSubmit={handleReassignAndDelete} className="mt-4 space-y-4">
               <div>
                 <label
                   htmlFor="reassign-target"
@@ -330,7 +324,10 @@ export default function DepartmentsPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!targetDept || reassignMut.isPending}>
+                <Button
+                  type="submit"
+                  disabled={!targetDept || reassignMut.isPending}
+                >
                   {reassignMut.isPending
                     ? 'Reassigning...'
                     : 'Reassign & Delete'}

@@ -224,6 +224,7 @@ const DEFAULT_COMPANY = {
 const MENU_KEYS = [
   'dashboard',
   'user_management',
+  'department_management',
   'customers',
   'products',
   'sales',
