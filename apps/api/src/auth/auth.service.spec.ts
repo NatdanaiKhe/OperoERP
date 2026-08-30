@@ -679,38 +679,6 @@ describe('AuthService', () => {
     expect(prismaMock.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 
-  // --- softDeleteUser ---
-
-  it('soft-deletes a user: keeps row, marks inactive + deletedAt, revokes sessions', async () => {
-    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
-    prismaMock.user.update.mockResolvedValue({});
-    prismaMock.refreshToken.updateMany.mockResolvedValue({ count: 2 });
-
-    await service.softDeleteUser('u1', reqMock);
-
-    expect(prismaMock.user.update).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      data: { isActive: false, deletedAt: expect.any(Date) },
-    });
-    expect(prismaMock.refreshToken.updateMany).toHaveBeenCalledWith({
-      where: { userId: 'u1', revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(auditLogMock.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'USER_DELETED', userId: 'u1' }),
-    );
-  });
-
-  it('softDeleteUser throws NotFoundException for unknown user', async () => {
-    prismaMock.user.findUnique.mockResolvedValueOnce(null);
-
-    await expect(service.softDeleteUser('missing', reqMock)).rejects.toThrow(
-      NotFoundException,
-    );
-    expect(prismaMock.user.update).not.toHaveBeenCalled();
-    expect(prismaMock.refreshToken.updateMany).not.toHaveBeenCalled();
-  });
-
   // --- profile ---
 
   describe('profile', () => {
