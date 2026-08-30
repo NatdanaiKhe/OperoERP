@@ -11,7 +11,6 @@ describe('DepartmentService', () => {
       findMany: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
-      delete: jest.Mock;
     };
     user: { count: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
   };
@@ -23,7 +22,6 @@ describe('DepartmentService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
-        delete: jest.fn(),
       },
       user: { count: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
@@ -65,16 +63,38 @@ describe('DepartmentService', () => {
       ).rejects.toThrow(ConflictException);
       expect(prisma.department.create).not.toHaveBeenCalled();
     });
+
+    it('restores a soft-deleted department with the same name', async () => {
+      prisma.department.findUnique.mockResolvedValue({
+        id: 'dept-x',
+        name: 'Engineering',
+        companyId: 'company-1',
+        deletedAt: new Date(),
+      });
+      const restored = { id: 'dept-x', name: 'Engineering', companyId: 'company-1', deletedAt: null };
+      prisma.department.update.mockResolvedValue(restored);
+
+      const result = await service.create({ name: 'Engineering', companyId: 'company-1' });
+
+      expect(prisma.department.update).toHaveBeenCalledWith({
+        where: { id: 'dept-x' },
+        data: { deletedAt: null },
+      });
+      expect(prisma.department.create).not.toHaveBeenCalled();
+      expect(result).toEqual(restored);
+    });
   });
 
   describe('findAll', () => {
-    it('returns all departments when no companyId given', async () => {
+    it('returns non-deleted departments when no companyId given', async () => {
       const departments = [{ id: 'dept-1', name: 'Engineering', companyId: 'company-1' }];
       prisma.department.findMany.mockResolvedValue(departments);
 
       const result = await service.findAll();
 
-      expect(prisma.department.findMany).toHaveBeenCalledWith();
+      expect(prisma.department.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null },
+      });
       expect(result).toEqual(departments);
     });
 
@@ -85,7 +105,7 @@ describe('DepartmentService', () => {
       const result = await service.findAll('company-1');
 
       expect(prisma.department.findMany).toHaveBeenCalledWith({
-        where: { companyId: 'company-1' },
+        where: { companyId: 'company-1', deletedAt: null },
       });
       expect(result).toEqual(departments);
     });
@@ -105,6 +125,16 @@ describe('DepartmentService', () => {
     it('throws NotFoundException when the department does not exist', async () => {
       prisma.department.findUnique.mockResolvedValue(null);
       await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException for a soft-deleted department', async () => {
+      prisma.department.findUnique.mockResolvedValue({
+        id: 'dept-1',
+        name: 'Engineering',
+        companyId: 'company-1',
+        deletedAt: new Date(),
+      });
+      await expect(service.findOne('dept-1')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -131,15 +161,20 @@ describe('DepartmentService', () => {
   });
 
   describe('remove', () => {
-    it('deletes the department when it has no users', async () => {
+    it('soft-deletes the department when no active users are assigned', async () => {
       prisma.department.findUnique.mockResolvedValue({ id: 'dept-1', name: 'Engineering', companyId: 'company-1' });
       prisma.user.count.mockResolvedValue(0);
-      prisma.department.delete.mockResolvedValue({});
+      prisma.department.update.mockResolvedValue({});
 
       await service.remove('dept-1');
 
-      expect(prisma.user.count).toHaveBeenCalledWith({ where: { departmentId: 'dept-1' } });
-      expect(prisma.department.delete).toHaveBeenCalledWith({ where: { id: 'dept-1' } });
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { departmentId: 'dept-1', deletedAt: null },
+      });
+      expect(prisma.department.update).toHaveBeenCalledWith({
+        where: { id: 'dept-1' },
+        data: { deletedAt: expect.any(Date) },
+      });
     });
 
     it('throws NotFoundException when the department does not exist', async () => {
@@ -147,11 +182,28 @@ describe('DepartmentService', () => {
       await expect(service.remove('missing')).rejects.toThrow(NotFoundException);
     });
 
-    it('throws ConflictException when the department still has users', async () => {
+    it('rejects with affected-user count when active users are assigned', async () => {
       prisma.department.findUnique.mockResolvedValue({ id: 'dept-1', name: 'Engineering', companyId: 'company-1' });
       prisma.user.count.mockResolvedValue(3);
-      await expect(service.remove('dept-1')).rejects.toThrow(ConflictException);
-      expect(prisma.department.delete).not.toHaveBeenCalled();
+
+      const promise = service.remove('dept-1');
+      await expect(promise).rejects.toThrow(ConflictException);
+      await expect(promise).rejects.toMatchObject({
+        response: { affectedUserCount: 3 },
+      });
+      expect(prisma.department.update).not.toHaveBeenCalled();
+    });
+
+    it('ignores soft-deleted users when counting assignees', async () => {
+      prisma.department.findUnique.mockResolvedValue({ id: 'dept-1', name: 'Engineering', companyId: 'company-1' });
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.remove('dept-1');
+
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { departmentId: 'dept-1', deletedAt: null },
+      });
+      expect(prisma.department.update).toHaveBeenCalled();
     });
   });
 

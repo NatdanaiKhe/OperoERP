@@ -7,14 +7,17 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { UserTable } from '@/app/components/organisms/user-table';
 import { InviteDialog } from '@/app/components/organisms/invite-dialog';
+import { EditUserDialog } from '@/app/components/organisms/edit-user-dialog';
 import { useUsers } from '@/app/features/users/hooks';
 import { useProfile } from '@/app/features/auth/hooks';
+import type { User } from '@/app/features/users/types';
 
 export default function UsersPage() {
   const { data: users, isLoading, isError } = useUsers();
   const { data: profile } = useProfile();
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
 
   const menuConfig = profile?.menuConfig ?? [];
@@ -80,10 +83,15 @@ export default function UsersPage() {
           Failed to load users. Please try again.
         </p>
       ) : (
-        <UserTable users={filtered} isLoading={isLoading} />
+        <UserTable
+          users={filtered}
+          isLoading={isLoading}
+          onEdit={setEditingUser}
+        />
       )}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
     </div>
   );
 }
