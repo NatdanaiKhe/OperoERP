@@ -12,7 +12,7 @@ describe('DepartmentService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
-    user: { count: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+    user: { count: jest.Mock; findUnique: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -23,7 +23,7 @@ describe('DepartmentService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
-      user: { count: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+      user: { count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -235,6 +235,27 @@ describe('DepartmentService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(service.assignUser('missing-user', 'dept-1')).rejects.toThrow(NotFoundException);
       expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reassignUsers', () => {
+    it('moves active users from one department to another', async () => {
+      prisma.department.findUnique.mockResolvedValue({ id: 'dept-1', name: 'Engineering', companyId: 'company-1' });
+      prisma.user.updateMany.mockResolvedValue({ count: 4 });
+
+      const result = await service.reassignUsers('dept-1', 'dept-2');
+
+      expect(prisma.department.findUnique).toHaveBeenCalledTimes(2);
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: { departmentId: 'dept-1', deletedAt: null },
+        data: { departmentId: 'dept-2' },
+      });
+      expect(result).toEqual({ moved: 4 });
+    });
+
+    it('rejects reassigning a department to itself', async () => {
+      await expect(service.reassignUsers('dept-1', 'dept-1')).rejects.toThrow(ConflictException);
+      expect(prisma.user.updateMany).not.toHaveBeenCalled();
     });
   });
 });

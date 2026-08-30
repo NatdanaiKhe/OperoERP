@@ -7,10 +7,12 @@ if (!baseUrl) {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  body: unknown;
+  constructor(message: string, status: number, body?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -44,7 +46,7 @@ export async function apiFetch<T>(
   if (!res.ok) {
     const rawMessage = data?.message ?? 'Request failed';
     const message = Array.isArray(rawMessage) ? rawMessage.join('; ') : rawMessage;
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, data);
   }
 
   return data as T;
