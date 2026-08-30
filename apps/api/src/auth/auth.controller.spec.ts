@@ -69,6 +69,7 @@ describe('AuthController', () => {
     updateLastLogin: jest.fn().mockResolvedValue(undefined),
     profile: jest.fn(),
     listUsers: jest.fn(),
+    softDeleteUser: jest.fn().mockResolvedValue(undefined),
     changePassword: jest.fn().mockResolvedValue(undefined),
     invite: jest.fn().mockResolvedValue({ userId: 'new-user-id' }),
     acceptInvite: jest.fn().mockResolvedValue(undefined),
@@ -218,6 +219,15 @@ describe('AuthController', () => {
 
     expect(authServiceMock.listUsers).toHaveBeenCalledWith('company-1');
     expect(result).toHaveLength(1);
+  });
+
+  it('deletes a user (admin only) and returns success message', async () => {
+    const result = await controller.deleteUser('user-1', reqMock);
+    expect(authServiceMock.softDeleteUser).toHaveBeenCalledWith(
+      'user-1',
+      reqMock,
+    );
+    expect(result).toEqual({ message: 'User deleted' });
   });
 
   it('changes password and returns success message', async () => {
