@@ -57,6 +57,7 @@ describe('NotificationService', () => {
         'jane@example.com',
         'Jane Doe',
         'http://localhost:3000/auth/reset-password?token=xyz',
+        '60',
       );
 
       expect(emailQueue.add).toHaveBeenCalledWith(
@@ -65,6 +66,7 @@ describe('NotificationService', () => {
           name: 'Jane Doe',
           email: 'jane@example.com',
           resetUrl: 'http://localhost:3000/auth/reset-password?token=xyz',
+          expiredInMinutes: '60',
         },
         JOB_OPTS,
       );

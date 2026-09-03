@@ -363,6 +363,7 @@ describe('AuthService', () => {
       'jane@example.com',
       'Jane Doe',
       expect.stringContaining('/auth/reset-password?token='),
+      '60',
     );
     expect(auditLogMock.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'PASSWORD_RESET_REQUESTED' }),

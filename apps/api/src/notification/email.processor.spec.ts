@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EmailProcessor } from '@/notification/email.processor';
-import {
-  AuditLogService,
-  AuditAction,
-} from '@/audit/audit-log.service';
+import { AuditLogService, AuditAction } from '@/audit/audit-log.service';
 import type { WelcomeEmailDto } from '@/notification/dto/welcome-email.dto';
 import type { ResetEmailDto } from '@/notification/dto/reset-email.dto';
 
@@ -71,6 +68,7 @@ describe('EmailProcessor', () => {
     name: 'Jane Doe',
     email: 'jane@example.com',
     resetUrl: 'http://localhost:3000/auth/reset-password?token=xyz',
+    expiredInMinutes: '60',
   };
 
   describe('process invite', () => {
@@ -118,7 +116,8 @@ describe('EmailProcessor', () => {
           id: 'tpl_reset',
           variables: {
             name: 'Jane Doe',
-            url: 'http://localhost:3000/auth/reset-password?token=xyz',
+            resetUrl: 'http://localhost:3000/auth/reset-password?token=xyz',
+            expiredInMinutes: '60',
           },
         },
       });
