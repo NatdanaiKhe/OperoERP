@@ -31,8 +31,14 @@ export class NotificationService {
     to: string,
     name: string,
     resetUrl: string,
+    expiredInMinutes: string,
   ): Promise<void> {
-    const dto: ResetEmailDto = { name, email: to, resetUrl };
+    const dto: ResetEmailDto = {
+      name,
+      email: to,
+      resetUrl,
+      expiredInMinutes: expiredInMinutes,
+    };
     await this.emailQueue.add('reset', dto, JOB_OPTS);
   }
 }

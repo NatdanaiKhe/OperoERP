@@ -355,16 +355,21 @@ export class AuthService {
     // Enumeration-proof: always resolve, no token/email/audit for unknown or inactive.
     if (!user || !user.isActive) return;
 
+    const resetTokenTtlHours = this.config.getOrThrow<number>(
+      'RESET_TOKEN_TTL_HOURS',
+    );
+
     const raw = await this.generateTokenRecord(
       user.id,
       TokenType.PASSWORD_RESET,
-      this.config.getOrThrow<number>('RESET_TOKEN_TTL_HOURS'),
+      resetTokenTtlHours,
     );
     const resetUrl = `${this.config.getOrThrow<string>('WEB_APP_URL')}/auth/reset-password?token=${raw}`;
     await this.notification.sendResetEmail(
       email,
       `${user.firstName} ${user.lastName}`,
       resetUrl,
+      (resetTokenTtlHours * 60).toString(),
     );
     await this.auditLog.log({
       action: AuditAction.PASSWORD_RESET_REQUESTED,

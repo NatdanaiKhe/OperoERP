@@ -46,7 +46,8 @@ export class EmailProcessor extends WorkerHost {
         const dto = job.data as ResetEmailDto;
         return this.send('reset', dto.email, this.resetTemplateId, {
           name: dto.name,
-          url: dto.resetUrl,
+          resetUrl: dto.resetUrl,
+          expiredInMinutes: dto.expiredInMinutes,
         });
       }
       default:
