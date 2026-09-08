@@ -9,13 +9,13 @@
 import 'dotenv/config';
 import { PrismaClient } from './generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { validateEnv } from '@opero/config';
+import { validateDatabaseEnv } from '@opero/config';
 import * as bcrypt from 'bcrypt';
 
-const appEnv = validateEnv(process.env);
+const { DATABASE_URL } = validateDatabaseEnv(process.env);
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: appEnv.DATABASE_URL }),
+  adapter: new PrismaPg({ connectionString: DATABASE_URL }),
 });
 
 type PermissionDef = { name: string; description: string };

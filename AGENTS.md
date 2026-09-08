@@ -24,7 +24,8 @@ work on top of the merged auth feature.
   — **not** raw `process.env`.
 
 - **`packages/database`**: `prisma.config.ts` and `seed.ts` call
-  `validateEnv(process.env)` from `@opero/config` and use `appEnv.DATABASE_URL`.
+  `validateDatabaseEnv(process.env)` from `@opero/config` and use `DATABASE_URL`
+  — the only env var the package ever reads.
 
 ## Global wiring (`apps/api` post-NAT-00 state)
 
@@ -45,7 +46,7 @@ yarn typecheck
 yarn lint
 yarn format
 
-# Database (all depend on @opero/config#build; db:* scripts wrap prisma with `infisical run --env=dev` — the DB env lives in the **api** Infisical project, `packages/database/.infisical.json` points there)
+# Database (all depend on @opero/config#build; db:* scripts run through `scripts/prisma-env.sh`, which injects the **api** Infisical project's secrets then filters to only `DATABASE_URL` — prisma never sees api-only secrets)
 yarn turbo db:generate
 yarn turbo db:migrate
 yarn turbo db:migrate-dev

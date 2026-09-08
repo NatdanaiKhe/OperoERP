@@ -11,11 +11,11 @@
     "prisma": "^7.9.1"
   },
   "scripts": {
-    "build": "infisical run --env=dev -- prisma generate && tsc -p tsconfig.json",
-    "db:generate": "infisical run --env=dev -- prisma generate",
-    "db:migrate-dev": "infisical run --env=dev -- prisma migrate dev",
-    "db:deploy": "infisical run --env=dev -- prisma migrate deploy",
-    "db:seed": "infisical run --env=dev -- prisma db seed",
+    "build": "./scripts/prisma-env.sh prisma generate && tsc -p tsconfig.json",
+    "db:generate": "./scripts/prisma-env.sh prisma generate",
+    "db:migrate-dev": "./scripts/prisma-env.sh prisma migrate dev",
+    "db:deploy": "./scripts/prisma-env.sh prisma migrate deploy",
+    "db:seed": "./scripts/prisma-env.sh prisma db seed",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
