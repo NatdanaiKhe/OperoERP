@@ -45,7 +45,7 @@ yarn typecheck
 yarn lint
 yarn format
 
-# Database (all depend on @opero/config#build)
+# Database (all depend on @opero/config#build; db:* scripts wrap prisma with `infisical run --env=dev` — the DB env lives in the **api** Infisical project, `packages/database/.infisical.json` points there)
 yarn turbo db:generate
 yarn turbo db:migrate
 yarn turbo db:migrate-dev
