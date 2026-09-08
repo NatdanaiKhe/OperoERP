@@ -46,7 +46,7 @@ yarn typecheck
 yarn lint
 yarn format
 
-# Database (all depend on @opero/config#build; db:* scripts run through `scripts/prisma-env.sh`, which injects the **api** Infisical project's secrets then filters to only `DATABASE_URL` — prisma never sees api-only secrets)
+# Database (all depend on @opero/config#build; db:* scripts run through `scripts/prisma-env.sh`, which injects the **api** Infisical project's secrets then filters to only `DATABASE_URL` — prisma never sees api-only secrets; `packages/database/turbo.json` sets `build` to `envMode: loose` so any Infisical auth method passes in CI, while web keeps the root strict env)
 yarn turbo db:generate
 yarn turbo db:migrate
 yarn turbo db:migrate-dev

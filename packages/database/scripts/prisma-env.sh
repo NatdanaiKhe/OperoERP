@@ -3,4 +3,7 @@
 # needs (DATABASE_URL) down to the command. Least privilege: prisma/seed
 # never sees api-only secrets like JWT_SECRET or RESEND_API_KEY.
 set -euo pipefail
+# Anchor to this package so .infisical.json + prisma schema resolve no matter
+# where the script is invoked from (root, turbo, CI/CD).
+cd "$(dirname "$0")/.."
 infisical run --env=dev -- sh -c 'env -i PATH="$PATH" HOME="$HOME" DATABASE_URL="$DATABASE_URL" "$@"' sh "$@"
