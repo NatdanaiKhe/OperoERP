@@ -3,7 +3,8 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "envMode": "loose"
+      "envMode": "loose",
+      "dependsOn": ["db:generate"]
     }
   }
 }
