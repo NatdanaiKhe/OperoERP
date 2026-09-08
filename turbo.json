@@ -2,32 +2,24 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "db:generate": {
-      "env": [
-        "DATABASE_URL",
-        "JWT_SECRET",
-        "REDIS_URL"
-      ],
+      "envMode": "loose",
       "dependsOn": [
         "@opero/config#build"
       ],
       "outputs": [
-        "node_modules/.prisma/client/**"
+        "src/generated/prisma/**"
       ]
     },
     "db:migrate": {
       "cache": false,
-      "env": [
-        "DATABASE_URL"
-      ],
+      "envMode": "loose",
       "dependsOn": [
         "@opero/config#build"
       ]
     },
     "db:migrate-dev": {
       "cache": false,
-      "env": [
-        "DATABASE_URL"
-      ],
+      "envMode": "loose",
       "dependsOn": [
         "@opero/config#build",
         "database#build"
@@ -35,18 +27,14 @@
     },
     "db:deploy": {
       "cache": false,
-      "env": [
-        "DATABASE_URL"
-      ],
+      "envMode": "loose",
       "dependsOn": [
         "@opero/config#build"
       ]
     },
     "db:seed": {
       "cache": false,
-      "env": [
-        "DATABASE_URL"
-      ],
+      "envMode": "loose",
       "dependsOn": [
         "@opero/config#build",
         "database#build"
@@ -64,7 +52,9 @@
         "DATABASE_URL",
         "JWT_SECRET",
         "REDIS_URL",
-        "NEXT_PUBLIC_API_URL"
+        "NEXT_PUBLIC_API_URL",
+        "INFISICAL_DOMAIN",
+        "INFISICAL_CUSTOM_HEADERS"
       ]
     },
     "lint": {
@@ -93,7 +83,8 @@
       "persistent": true,
       "dependsOn": [
         "^build"
-      ]
+      ],
+      "envMode": "loose"
     }
   }
 }

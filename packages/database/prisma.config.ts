@@ -2,9 +2,9 @@
 // npm install --save-dev prisma dotenv
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
-import { validateEnv } from '@opero/config';
+import { validateDatabaseEnv } from '@opero/config';
 
-const appEnv = validateEnv(process.env);
+const appEnv = validateDatabaseEnv(process.env);
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
