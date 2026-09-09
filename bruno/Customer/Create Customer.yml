@@ -1,0 +1,27 @@
+info:
+  name: Create Customer
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/customer"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Acme Corp",
+        "contactPerson": "Jane Smith",
+        "email": "jane.smith@acme.com",
+        "phone": "+66 2 123 4567",
+        "address": "123 Sukhumvit Rd, Bangkok",
+        "taxId": "0105555123456",
+        "notes": "Key account - priority support"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
