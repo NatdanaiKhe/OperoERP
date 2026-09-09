@@ -1,9 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CustomerService } from '@/customer/customer.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { AuditLogService } from '@/audit/audit-log.service';
+import type { Request } from 'express';
 
 const companyId = 'company-id';
 const customerId = 'customer-id';
+const userId = 'user-id';
+const req = {} as Request;
 const customer = {
   id: customerId,
   name: 'Customer 1',
@@ -49,6 +53,7 @@ describe('CustomerService', () => {
       providers: [
         CustomerService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
@@ -70,7 +75,7 @@ describe('CustomerService', () => {
       id: customerId,
     });
 
-    const result = await service.create(customer, companyId);
+    const result = await service.create(customer, companyId, userId, req);
 
     expect(mockPrismaService.customer.create).toHaveBeenCalledWith({
       data: { ...customer, companyId },
@@ -212,10 +217,10 @@ describe('CustomerService', () => {
   it('should find a customer by id', async () => {
     mockPrismaService.customer.findUnique.mockResolvedValue(customer);
 
-    const result = await service.findOne(customerId);
+    const result = await service.findOne(customerId, companyId);
 
     expect(mockPrismaService.customer.findUnique).toHaveBeenCalledWith({
-      where: { id: customerId },
+      where: { id: customerId, companyId, deletedAt: null },
     });
     expect(result).toEqual(customer);
   });
@@ -226,15 +231,24 @@ describe('CustomerService', () => {
       email: 'updated.customer@example.com',
     };
 
+    mockPrismaService.customer.findUnique
+      .mockResolvedValueOnce(customer)
+      .mockResolvedValueOnce(null);
     mockPrismaService.customer.update.mockResolvedValue({
       ...customer,
       ...updateCustomerDto,
     });
 
-    const result = await service.update(customerId, updateCustomerDto);
+    const result = await service.update(
+      customerId,
+      updateCustomerDto,
+      companyId,
+      userId,
+      req,
+    );
 
     expect(mockPrismaService.customer.update).toHaveBeenCalledWith({
-      where: { id: customerId },
+      where: { id: customerId, companyId, deletedAt: null },
       data: updateCustomerDto,
     });
 
@@ -250,10 +264,10 @@ describe('CustomerService', () => {
       deletedAt: new Date(),
     });
 
-    const result = await service.delete('customer-id');
+    const result = await service.delete('customer-id', companyId, userId, req);
 
     expect(mockPrismaService.customer.update).toHaveBeenCalledWith({
-      where: { id: 'customer-id' },
+      where: { id: 'customer-id', companyId, deletedAt: null },
       data: { deletedAt: expect.any(Date) },
     });
 

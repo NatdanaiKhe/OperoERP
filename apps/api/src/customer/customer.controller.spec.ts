@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CustomerController } from '@/customer/customer.controller';
 import { CustomerService } from '@/customer/customer.service';
 import type { JwtPayload } from '@/common/decorators/current-user.decorator';
+import type { Request } from 'express';
 
 describe('CustomerController', () => {
   let controller: CustomerController;
@@ -19,6 +20,8 @@ describe('CustomerController', () => {
     companyId: 'company-1',
     isSuperAdmin: false,
   } as JwtPayload;
+
+  const req = {} as Request;
 
   beforeEach(async () => {
     service = {
@@ -45,9 +48,14 @@ describe('CustomerController', () => {
     const createDto = { name: 'John Doe', email: 'john.doe@example.com' };
     service.create.mockResolvedValue({ id: '1', ...createDto });
 
-    await controller.create(mockUser, createDto as any);
+    await controller.create(mockUser, createDto as any, req as any);
 
-    expect(service.create).toHaveBeenCalledWith(createDto, mockUser.companyId);
+    expect(service.create).toHaveBeenCalledWith(
+      createDto,
+      mockUser.companyId,
+      mockUser.userId,
+      req,
+    );
   });
 
   it('should pass companyId to findAll', async () => {
@@ -71,20 +79,27 @@ describe('CustomerController', () => {
     const updateDto = { name: 'Updated Name' };
     service.update.mockResolvedValue({ id: '1', ...updateDto });
 
-    await controller.update('1', updateDto as any, mockUser);
+    await controller.update('1', updateDto as any, mockUser, req as any);
 
     expect(service.update).toHaveBeenCalledWith(
       '1',
       updateDto,
       mockUser.companyId,
+      mockUser.userId,
+      req,
     );
   });
 
   it('should pass companyId to delete', async () => {
     service.delete.mockResolvedValue({ id: '1' });
 
-    await controller.delete('1', mockUser);
+    await controller.delete('1', mockUser, req as any);
 
-    expect(service.delete).toHaveBeenCalledWith('1', mockUser.companyId);
+    expect(service.delete).toHaveBeenCalledWith(
+      '1',
+      mockUser.companyId,
+      mockUser.userId,
+      req,
+    );
   });
 });

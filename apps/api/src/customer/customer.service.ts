@@ -8,12 +8,22 @@ import { UpdateCustomerDto } from '@/customer/dto/update-customer.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Prisma } from 'database';
 import { FindCustomersDto } from '@/customer/dto/find-customer.dto';
+import type { Request } from 'express';
+import { AuditAction, AuditLogService } from '@/audit/audit-log.service';
 
 @Injectable()
 export class CustomerService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) {}
 
-  async create(createCustomerDto: CreateCustomerDto, companyId: string) {
+  async create(
+    createCustomerDto: CreateCustomerDto,
+    companyId: string,
+    requestingUserId: string,
+    req: Request,
+  ) {
     const existing = await this.prisma.customer.findUnique({
       where: {
         companyId_email: {
@@ -33,6 +43,13 @@ export class CustomerService {
         ...createCustomerDto,
         companyId,
       },
+    });
+
+    await this.auditLog.log({
+      action: AuditAction.CUSTOMER_CREATED,
+      userId: requestingUserId,
+      req,
+      metadata: { customerId: customer.id, email: customer.email },
     });
     return customer;
   }
@@ -92,6 +109,8 @@ export class CustomerService {
     id: string,
     updateCustomerDto: UpdateCustomerDto,
     companyId: string,
+    requestingUserId: string,
+    req: Request,
   ) {
     const existing = await this.prisma.customer.findUnique({
       where: { id, companyId, deletedAt: null },
@@ -119,13 +138,26 @@ export class CustomerService {
       }
     }
 
-    return this.prisma.customer.update({
+    const customer = await this.prisma.customer.update({
       where: { id, companyId, deletedAt: null },
       data: updateCustomerDto,
     });
+
+    await this.auditLog.log({
+      action: AuditAction.CUSTOMER_UPDATED,
+      userId: requestingUserId,
+      req,
+      metadata: { customerId: id, email: customer.email },
+    });
+    return customer;
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(
+    id: string,
+    companyId: string,
+    requestingUserId: string,
+    req: Request,
+  ) {
     const existing = await this.prisma.customer.findUnique({
       where: { id, companyId, deletedAt: null },
     });
@@ -136,6 +168,13 @@ export class CustomerService {
     const customer = await this.prisma.customer.update({
       where: { id, companyId, deletedAt: null },
       data: { deletedAt: new Date() },
+    });
+
+    await this.auditLog.log({
+      action: AuditAction.CUSTOMER_DELETED,
+      userId: requestingUserId,
+      req,
+      metadata: { customerId: id, email: existing.email },
     });
     return customer;
   }
