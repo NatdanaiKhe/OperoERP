@@ -12,8 +12,9 @@ import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import { NotificationModule } from '@/notification/notification.module';
 import { RolesModule } from '@/roles/roles.module';
 import { QueueModule } from '@/queue/queue.module';
-import { CompanyModule } from './company/company.module';
-import { DepartmentModule } from './department/department.module';
+import { CompanyModule } from '@/company/company.module';
+import { DepartmentModule } from '@/department/department.module';
+import { CustomerModule } from '@/customer/customer.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { DepartmentModule } from './department/department.module';
     QueueModule.forRootAsync(),
     CompanyModule,
     DepartmentModule,
+    CustomerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
