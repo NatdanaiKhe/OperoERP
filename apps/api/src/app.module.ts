@@ -8,6 +8,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { HealthModule } from '@/health/health.module';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
+import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import { NotificationModule } from '@/notification/notification.module';
 import { RolesModule } from '@/roles/roles.module';
@@ -32,6 +33,7 @@ import { DepartmentModule } from './department/department.module';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],
 })

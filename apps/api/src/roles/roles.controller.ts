@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { UpdateMenuConfigDto } from './dto/update-menu-config.dto';
 import {
   CurrentUser,
@@ -13,6 +14,7 @@ export class RolesController {
 
   @Get()
   @Roles('superadmin', 'admin')
+  @RequirePermissions('role:read')
   async listRoles(
     @CurrentUser() user: JwtPayload,
     @Query('companyId') queryCompanyId?: string,
@@ -25,6 +27,7 @@ export class RolesController {
 
   @Put(':id/menu-config')
   @Roles('superadmin', 'admin')
+  @RequirePermissions('role:update')
   async updateMenuConfig(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,

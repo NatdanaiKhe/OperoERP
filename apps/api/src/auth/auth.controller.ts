@@ -29,6 +29,7 @@ import {
 } from '@/common/decorators/current-user.decorator';
 import { Public } from '@/common/decorators/public.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import {
   REFRESH_COOKIE,
   refreshCookieOptions,
@@ -58,6 +59,7 @@ export class AuthController {
 
   @Get('users')
   @Roles('admin', 'superadmin')
+  @RequirePermissions('user:read')
   async listUsers(
     @CurrentUser() user: JwtPayload,
     @Query() query: ListUsersQueryDto,
@@ -67,6 +69,7 @@ export class AuthController {
 
   @Patch('users/:id')
   @Roles('admin', 'superadmin')
+  @RequirePermissions('user:update')
   async updateUser(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -77,6 +80,7 @@ export class AuthController {
 
   @Delete('users/:id')
   @Roles('admin', 'superadmin')
+  @RequirePermissions('user:delete')
   async deleteUser(@Param('id') id: string, @Req() req: Request) {
     await this.authService.softDeleteUser(id, req);
     return { message: 'User deleted' };
@@ -84,6 +88,7 @@ export class AuthController {
 
   @Post('invite')
   @Roles('admin', 'superadmin')
+  @RequirePermissions('user:create')
   async invite(@Body() dto: InviteDto, @Req() req: Request) {
     const { userId } = await this.authService.invite(dto, req);
     return { message: 'Invitation sent successfully', userId };
