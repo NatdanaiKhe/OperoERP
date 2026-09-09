@@ -17,6 +17,9 @@ export enum AuditAction {
   USER_DELETED = 'USER_DELETED',
   USER_UPDATED = 'USER_UPDATED',
   EMAIL_SEND_FAILED = 'EMAIL_SEND_FAILED',
+  CUSTOMER_CREATED = 'CUSTOMER_CREATED',
+  CUSTOMER_DELETED = 'CUSTOMER_DELETED',
+  CUSTOMER_UPDATED = 'CUSTOMER_UPDATED',
 }
 
 @Injectable()
@@ -44,7 +47,8 @@ export class AuditLogService {
           ipAddress: req?.ip ?? null,
           userAgent:
             (req?.headers?.['user-agent'] as string | undefined) ?? null,
-          metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+          metadata: (metadata ?? undefined) as
+            Prisma.InputJsonValue | undefined,
         },
       });
     } catch (err) {
