@@ -4,7 +4,7 @@ import { PERMISSIONS_KEY } from '@/common/decorators/permissions.decorator';
 // Mirrors the M2 tracer-slice assertion: each guarded handler carries the
 // expected PERMISSIONS_KEY metadata so the global PermissionsGuard enforces it.
 describe('AuthController permission metadata', () => {
-  const metadataFor = (methodName: string) =>
+  const metadataFor = (methodName: keyof AuthController) =>
     Reflect.getMetadata(PERMISSIONS_KEY, AuthController.prototype[methodName]);
 
   it('GET /auth/users requires user:read', () => {
