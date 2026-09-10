@@ -14,11 +14,12 @@ import {
   Settings,
   LifeBuoy,
 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/app/components/atoms/button';
 import { NavItem } from '@/app/components/molecules/nav-item';
 import { Logo } from '@/app/components/atoms/logo';
 import { useProfile } from '@/app/features/auth/hooks';
 import { cn } from '@/app/lib/utils';
+import type { SidebarProps } from './sidebar.types';
 
 const ALL_NAV = [
   {
@@ -39,17 +40,12 @@ const ALL_NAV = [
     icon: Building2,
     menuKey: 'department_management',
   },
-  // { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
+  { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
   // { label: 'Products', href: '/dashboard/products', icon: Package, menuKey: 'products' },
   // { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart, menuKey: 'sales' },
   // { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck, menuKey: 'approvals' },
   // { label: 'Reports', href: '/dashboard/reports', icon: FileText, menuKey: 'reports' },
 ] as const;
-
-interface SidebarProps {
-  open: boolean;
-  onNavClick: () => void;
-}
 
 export function Sidebar({ open, onNavClick }: SidebarProps) {
   const { data: profile } = useProfile();

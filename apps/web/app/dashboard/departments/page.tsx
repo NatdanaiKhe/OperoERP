@@ -3,9 +3,25 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pencil, Plus, Trash2, X, Check } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { ApiError } from '@/app/lib/api-client';
+import { Button } from '@/app/components/atoms/button';
+import { Input } from '@/app/components/atoms/input';
+import { Select } from '@/app/components/atoms/select';
+import { Field } from '@/app/components/molecules/field';
+import { FormAlert } from '@/app/components/molecules/form-alert';
+import { apiErrorMessage, ApiError } from '@/app/lib/api-client';
+import {
+  Table,
+  TableHead,
+  TableHeaderRow,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/app/components/atoms/table';
+import {
+  TableSkeleton,
+  TableEmpty,
+} from '@/app/components/molecules/table-placeholder';
 import {
   useDepartments,
   useCreateDepartment,
@@ -15,10 +31,6 @@ import {
 } from '@/app/features/department/hooks';
 import { useProfile } from '@/app/features/auth/hooks';
 import type { Department } from '@/app/features/department/types';
-
-function errMsg(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Something went wrong.';
-}
 
 export default function DepartmentsPage() {
   const { data: departments, isLoading, isError } = useDepartments();
@@ -66,7 +78,7 @@ export default function DepartmentsPage() {
       await createMut.mutateAsync({ name: newName.trim(), companyId });
       setNewName('');
     } catch (err) {
-      setError(errMsg(err));
+      setError(apiErrorMessage(err));
     }
   }
 
@@ -86,7 +98,7 @@ export default function DepartmentsPage() {
       await updateMut.mutateAsync({ id: dept.id, payload: { name } });
       setEditingId(null);
     } catch (err) {
-      setError(errMsg(err));
+      setError(apiErrorMessage(err));
     }
   }
 
@@ -107,7 +119,7 @@ export default function DepartmentsPage() {
         setBlockedCount(count);
         setTargetDept('');
       } else {
-        setError(errMsg(err));
+        setError(apiErrorMessage(err));
       }
     }
   }
@@ -124,7 +136,7 @@ export default function DepartmentsPage() {
       await deleteMut.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
     } catch (err) {
-      setError(errMsg(err));
+      setError(apiErrorMessage(err));
     }
   }
 
@@ -139,30 +151,19 @@ export default function DepartmentsPage() {
         </p>
       </div>
 
-      {error && (
-        <div
-          role="alert"
-          className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      )}
+      {error && <FormAlert>{error}</FormAlert>}
 
       <form onSubmit={handleCreate} className="flex max-w-md items-end gap-3">
         <div className="flex-1">
-          <label
-            htmlFor="new-department"
-            className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-          >
-            New Department
-          </label>
-          <Input
-            id="new-department"
-            placeholder="e.g. Engineering"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            disabled={createMut.isPending || !companyId}
-          />
+          <Field htmlFor="new-department" label="New Department">
+            <Input
+              id="new-department"
+              placeholder="e.g. Engineering"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              disabled={createMut.isPending || !companyId}
+            />
+          </Field>
         </div>
         <Button type="submit" disabled={createMut.isPending || !companyId}>
           <Plus className="h-4 w-4" />
@@ -175,38 +176,22 @@ export default function DepartmentsPage() {
           Failed to load departments. Please try again.
         </p>
       ) : isLoading ? (
-        <div className="overflow-hidden rounded-lg border border-border/30 bg-card">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-12 animate-pulse border-b border-border/30 bg-muted/50"
-            />
-          ))}
-        </div>
+        <TableSkeleton rows={4} columns={2} />
       ) : departments && departments.length === 0 ? (
-        <div className="rounded-lg border border-border/30 bg-card px-4 py-12 text-center text-sm text-muted-foreground">
-          No departments yet. Create one above.
-        </div>
+        <TableEmpty>No departments yet. Create one above.</TableEmpty>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border/30 bg-card">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/30 bg-secondary">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Name
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
+          <Table>
+            <TableHead>
+              <TableHeaderRow>
+                <TableHeader>Name</TableHeader>
+                <TableHeader className="text-right">Actions</TableHeader>
+              </TableHeaderRow>
+            </TableHead>
+            <TableBody>
               {departments?.map((dept) => (
-                <tr
-                  key={dept.id}
-                  className="transition-colors hover:bg-secondary/50"
-                >
-                  <td className="px-4 py-2.5">
+                <TableRow key={dept.id}>
+                  <TableCell>
                     {editingId === dept.id ? (
                       <div className="flex max-w-sm items-center gap-2">
                         <Input
@@ -236,8 +221,8 @@ export default function DepartmentsPage() {
                         {dept.name}
                       </span>
                     )}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
+                  </TableCell>
+                  <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
                         size="sm"
@@ -261,11 +246,11 @@ export default function DepartmentsPage() {
                         Delete
                       </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -290,30 +275,19 @@ export default function DepartmentsPage() {
             </p>
 
             <form onSubmit={handleReassignAndDelete} className="mt-4 space-y-4">
-              <div>
-                <label
-                  htmlFor="reassign-target"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Move users to
-                </label>
-                <select
+              <Field htmlFor="reassign-target" label="Move users to">
+                <Select
                   id="reassign-target"
                   value={targetDept}
-                  onChange={(e) => setTargetDept(e.target.value)}
+                  onValueChange={setTargetDept}
                   disabled={reassignMut.isPending}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="" disabled>
-                    Select a department
-                  </option>
-                  {otherDepartments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  placeholder="Select a department"
+                  options={otherDepartments.map((d) => ({
+                    value: d.id,
+                    label: d.name,
+                  }))}
+                />
+              </Field>
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button

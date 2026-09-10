@@ -12,6 +12,7 @@ export function Input({ icon, invalid, className, ...props }: InputProps) {
     return (
       <ShadcnInput
         className={cn(
+          'bg-white',
           invalid && 'border-destructive focus-visible:ring-destructive/30',
           className,
         )}
@@ -27,7 +28,7 @@ export function Input({ icon, invalid, className, ...props }: InputProps) {
       </div>
       <ShadcnInput
         className={cn(
-          'pl-10',
+          'pl-10 bg-white',
           invalid && 'border-destructive focus-visible:ring-destructive/30',
           className,
         )}

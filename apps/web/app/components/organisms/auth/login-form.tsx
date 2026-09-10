@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { EmailField } from '@/app/components/molecules/email-field';
 import { PasswordField } from '@/app/components/molecules/password-field';
 import { Button } from '@/app/components/atoms/button';
-import { ApiError } from '@/app/lib/api-client';
+import { apiErrorMessage } from '@/app/lib/api-client';
 import { useLogin } from '@/app/features/auth/hooks';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,23 +40,13 @@ export function LoginForm() {
     }
   }
 
-  const displayError = validationError
-    ?? (error instanceof ApiError
-      ? error.message
-      : error
-        ? 'Something went wrong. Please try again.'
-        : null);
+  const displayError =
+    validationError ??
+    (error ? apiErrorMessage(error, 'Something went wrong. Please try again.') : null);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-      {displayError && (
-        <div
-          role="alert"
-          className="rounded border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
-        >
-          {displayError}
-        </div>
-      )}
+      {displayError && <FormAlert>{displayError}</FormAlert>}
       <EmailField
         value={email}
         onChange={setEmail}
@@ -68,7 +59,7 @@ export function LoginForm() {
         invalid={!!validationError && !password}
         disabled={isPending}
       />
-      <Button type="submit" fullWidth loading={isPending}>
+      <Button type="submit" fullWidth loading={isPending} loadingText="Signing in...">
         Sign In
       </Button>
     </form>

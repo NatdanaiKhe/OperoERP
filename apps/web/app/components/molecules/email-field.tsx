@@ -2,15 +2,8 @@
 
 import { Mail } from 'lucide-react';
 import { Input } from '@/app/components/atoms/input';
-import { Label } from '@/app/components/ui/label';
-
-interface EmailFieldProps {
-  value: string;
-  onChange: (value: string) => void;
-  invalid?: boolean;
-  disabled?: boolean;
-  id?: string;
-}
+import { Label } from '@/app/components/atoms/label';
+import type { EmailFieldProps } from './email-field.types';
 
 export function EmailField({
   value,

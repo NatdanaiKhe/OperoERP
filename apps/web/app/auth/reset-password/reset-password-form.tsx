@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Lock, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/atoms/input';
-import { Label } from '@/app/components/ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
-import { apiFetch, ApiError } from '@/app/lib/api-client';
+import { Button } from '@/app/components/atoms/button';
+import { Field } from '@/app/components/molecules/field';
+import { PasswordInput } from '@/app/components/molecules/password-input';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/atoms/card';
+import { AuthTemplate } from '@/app/components/templates/auth-template';
+import { apiFetch, apiErrorMessage } from '@/app/lib/api-client';
 import { Logo } from '@/app/components/atoms/logo';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token') ?? '';
   const [password, setPassword] = useState('');
-  const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,14 +39,14 @@ export function ResetPasswordForm() {
       });
       router.push('/login');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+      setError(apiErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <AuthTemplate>
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <div className="mx-auto mb-4">
@@ -59,43 +59,22 @@ export function ResetPasswordForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            {error && (
-              <div role="alert" className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-            <div>
-              <Label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                New Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={visible ? 'text' : 'password'}
-                  icon={<Lock className="h-5 w-5" />}
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
-                  required
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setVisible(!visible)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={visible ? 'Hide password' : 'Show password'}
-                >
-                  {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
+            {error && <FormAlert>{error}</FormAlert>}
+            <Field htmlFor="password" label="New Password">
+              <PasswordInput
+                id="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="Enter new password"
+                autoFocus
+              />
+            </Field>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Resetting...' : 'Reset Password'}
             </Button>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthTemplate>
   );
 }

@@ -7,26 +7,32 @@ import { cn } from '@/app/lib/utils';
 
 interface ButtonProps extends ShadcnButtonProps {
   loading?: boolean;
+  loadingText?: string;
   fullWidth?: boolean;
+  className?: string;
+  variant?:
+    'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  disabled?: boolean;
 }
 
 export function Button({
   loading = false,
+  loadingText,
   fullWidth = false,
   disabled,
-  children,
   className,
-  type = 'button',
   ...props
 }: ButtonProps) {
+  const isDisabled = disabled || loading;
+
   return (
     <ShadcnButton
-      type={type}
-      disabled={disabled || loading}
+      variant={props.variant}
+      disabled={isDisabled}
       className={cn(fullWidth && 'w-full', className)}
       {...props}
     >
-      {loading ? 'Signing in...' : children}
+      {loading ? (loadingText ?? 'Loading...') : props.children}
     </ShadcnButton>
   );
 }
