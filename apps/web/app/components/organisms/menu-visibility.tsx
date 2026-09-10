@@ -2,6 +2,16 @@
 
 import { Badge } from '@/app/components/atoms/badge';
 import { Card } from '@/app/components/atoms/card';
+import {
+  Table,
+  TableHead,
+  TableHeaderRow,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/app/components/atoms/table';
+import { formatName } from '@/app/lib/format';
 import { useRoles, useUpdateMenuConfig } from '@/app/features/roles/hooks';
 import type { RoleWithMenu } from '@/app/features/roles/types';
 
@@ -49,40 +59,35 @@ function MenuVisibilitySettings() {
         <Card className="h-96 animate-pulse bg-muted/50" />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border/30 bg-card">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/30 bg-secondary">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Role
-                </th>
+          <Table>
+            <TableHead>
+              <TableHeaderRow>
+                <TableHeader>Role</TableHeader>
                 {MENU_LABELS.map((m) => (
-                  <th
-                    key={m.key}
-                    className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                  >
+                  <TableHeader key={m.key} className="text-center">
                     {m.label}
-                  </th>
+                  </TableHeader>
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
+              </TableHeaderRow>
+            </TableHead>
+            <TableBody>
               {roles?.map((role: RoleWithMenu) => (
-                <tr key={role.id} className="transition-colors hover:bg-secondary/50">
-                  <td className="px-4 py-3">
+                <TableRow key={role.id}>
+                  <TableCell className="py-3">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">
-                        {role.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                        {formatName(role.name)}
                       </span>
                       {role.description && (
                         <span className="text-xs text-muted-foreground">{role.description}</span>
                       )}
                     </div>
-                  </td>
+                  </TableCell>
                   {MENU_LABELS.map((m) => {
                     const mv = role.menuVisibility.find((v) => v.menuKey === m.key);
                     const visible = mv?.visible ?? false;
                     return (
-                      <td key={m.key} className="px-4 py-3 text-center">
+                      <TableCell key={m.key} className="py-3 text-center">
                         <button
                           onClick={() => handleToggle(role.id, m.key, visible)}
                           disabled={isPending}
@@ -99,13 +104,13 @@ function MenuVisibilitySettings() {
                             }}
                           />
                         </button>
-                      </td>
+                      </TableCell>
                     );
                   })}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

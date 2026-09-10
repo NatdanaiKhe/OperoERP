@@ -6,14 +6,11 @@ import { Badge } from '@/app/components/atoms/badge';
 import { Button } from '@/app/components/atoms/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/atoms/card';
 import { Input } from '@/app/components/atoms/input';
-import { Label } from '@/app/components/ui/label';
+import { Label } from '@/app/components/atoms/label';
 import { useProfile, useUpdateProfile } from '@/app/features/auth/hooks';
-import { ApiError } from '@/app/lib/api-client';
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleString();
-}
+import { apiErrorMessage } from '@/app/lib/api-client';
+import { formatDateTime } from '@/app/lib/format';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 
 function ProfileSettings() {
   const { data: profile } = useProfile();
@@ -57,12 +54,8 @@ function ProfileSettings() {
   }
 
   const displayError =
-    validationError
-    ?? (error instanceof ApiError
-      ? error.message
-      : error
-        ? 'Something went wrong. Please try again.'
-        : null);
+    validationError ??
+    (error ? apiErrorMessage(error, 'Something went wrong. Please try again.') : null);
 
   return (
     <Card>
@@ -129,14 +122,7 @@ function ProfileSettings() {
           </div>
         </div>
 
-        {displayError && (
-          <div
-            role="alert"
-            className="rounded border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
-          >
-            {displayError}
-          </div>
-        )}
+        {displayError && <FormAlert>{displayError}</FormAlert>}
         {isSuccess && !displayError && (
           <p className="text-sm text-success">Profile saved.</p>
         )}

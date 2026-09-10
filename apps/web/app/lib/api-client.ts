@@ -16,6 +16,10 @@ export class ApiError extends Error {
   }
 }
 
+export function apiErrorMessage(err: unknown, fallback = 'Something went wrong.') {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit & { skipAuth?: boolean },

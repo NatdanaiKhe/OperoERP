@@ -1,5 +1,5 @@
 import { useCanAccess } from '@/app/features/auth/hooks';
-import CompanySettings from '../organisms/company-setting';
+import CompanySettings from '../organisms/company/company-setting';
 import MenuVisibilitySettings from '../organisms/menu-visibility';
 import ProfileSettings from '../organisms/profile-setting';
 import TabBar, { TabsContent } from '../organisms/tab-bar';

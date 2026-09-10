@@ -3,21 +3,11 @@ import {
   TabsList as ShadcnTabsList,
   TabsTrigger as ShadcnTabsTrigger,
   TabsContent as ShadcnTabsContent,
-} from '@/app/components/ui/tabs';
+} from '@/app/components/atoms/tabs';
 import { cn } from '@/app/lib/utils';
-import { ReactNode } from 'react';
+import type { TabBarProps, TabContentProps } from './tab-bar.types';
 
-export interface TabItem {
-  value: string;
-  name: string;
-}
-
-interface TabBarProps {
-  items: TabItem[];
-  defaultValue?: string;
-  activeClassName?: string;
-  children?: ReactNode;
-}
+export type { TabItem } from './tab-bar.types';
 
 export default function TabBar({
   items,
@@ -45,11 +35,6 @@ export default function TabBar({
       {children}
     </ShadcnTabs>
   );
-}
-
-interface TabContentProps {
-  children: ReactNode;
-  value: string;
 }
 
 export function TabsContent({ value, children }: TabContentProps) {
