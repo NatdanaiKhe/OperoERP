@@ -39,6 +39,16 @@ const permissions: PermissionDef[] = [
   { name: 'permission:read', description: 'View permissions' },
   { name: 'permission:assign', description: 'Assign permissions to roles' },
 
+  // Organization structure
+  { name: 'company:read', description: 'View companies' },
+  { name: 'company:create', description: 'Create companies' },
+  { name: 'company:update', description: 'Update companies' },
+  { name: 'company:delete', description: 'Delete companies' },
+  { name: 'department:read', description: 'View departments' },
+  { name: 'department:create', description: 'Create departments' },
+  { name: 'department:update', description: 'Update departments' },
+  { name: 'department:delete', description: 'Delete departments' },
+
   // Catalog & inventory
   { name: 'product:read', description: 'View products' },
   { name: 'product:create', description: 'Create products' },
