@@ -3,7 +3,7 @@ import { AuthTemplate } from '@/app/components/templates/auth-template';
 import { Card } from '@/app/components/atoms/card';
 import { TextLink } from '@/app/components/atoms/text-link';
 import { Logo } from '@/app/components/atoms/logo';
-import { LoginForm } from '@/app/components/organisms/login-form';
+import { LoginForm } from '@/app/components/organisms/auth/login-form';
 
 export const metadata: Metadata = {
   title: 'Sign in | OperoERP',

@@ -13,7 +13,7 @@ import {
   Clock,
   Wallet,
 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/app/components/atoms/button';
 import { Card } from '@/app/components/atoms/card';
 import { MetricGrid } from '@/app/components/organisms/metric-grid';
 import { ActivityFeed } from '@/app/components/organisms/activity-feed';

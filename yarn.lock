@@ -6092,6 +6092,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cn@npm:^0.2.6":
+  version: 0.2.6
+  resolution: "cn@npm:0.2.6"
+  bin:
+    cn: bin/cn.mjs
+  checksum: 10c0/7d5744771e897061e210d5aa49563d254518e7e032ec372991d8e1ebb1d61057b4ec538810de31ac267153e610c141ec54b0befd006c0220e772a652824b9830
+  languageName: node
+  linkType: hard
+
 "co@npm:^4.6.0":
   version: 4.6.0
   resolution: "co@npm:4.6.0"
@@ -11644,6 +11653,7 @@ __metadata:
     "@types/react-dom": "npm:^19"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
+    cn: "npm:^0.2.6"
     lucide-react: "npm:^1.31.0"
     next: "npm:16.3.3"
     radix-ui: "npm:^1.6.7"
@@ -11651,6 +11661,7 @@ __metadata:
     react-dom: "npm:19.2.4"
     tailwind-merge: "npm:^3.6.0"
     tailwindcss: "npm:^4"
+    zod: "npm:^4.4.3"
     zustand: "npm:5.0.15"
   languageName: unknown
   linkType: soft

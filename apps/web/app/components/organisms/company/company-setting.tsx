@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/app/components/atoms/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/atoms/card';
 import { Input } from '@/app/components/atoms/input';
-import { Label } from '@/app/components/ui/label';
+import { Label } from '@/app/components/atoms/label';
 import { useProfile } from '@/app/features/auth/hooks';
 import { useCompany, useUpdateCompany } from '@/app/features/company/hooks';
 import type { Company, UpdateCompanyPayload } from '@/app/features/company/types';
-import { ApiError } from '@/app/lib/api-client';
+import { apiErrorMessage } from '@/app/lib/api-client';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 
 function CompanySettings() {
   const { data: profile } = useProfile();
@@ -76,12 +77,8 @@ function CompanySettings() {
   }
 
   const displayError =
-    validationError
-    ?? (error instanceof ApiError
-      ? error.message
-      : error
-        ? 'Something went wrong. Please try again.'
-        : null);
+    validationError ??
+    (error ? apiErrorMessage(error, 'Something went wrong. Please try again.') : null);
 
   const fields: { key: keyof Company; label: string; fullWidth?: boolean }[] = [
     { key: 'name', label: 'Company Name' },
@@ -119,14 +116,7 @@ function CompanySettings() {
           ))}
         </div>
 
-        {displayError && (
-          <div
-            role="alert"
-            className="rounded border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
-          >
-            {displayError}
-          </div>
-        )}
+        {displayError && <FormAlert>{displayError}</FormAlert>}
         {isSuccess && !displayError && (
           <p className="text-sm text-success">Company saved.</p>
         )}

@@ -3,11 +3,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Search } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { UserTable } from '@/app/components/organisms/user-table';
+import { Button, Input } from '@/app/components/atoms';
+import { UserTable } from '@/app/components/organisms/user/user-table';
 import { InviteDialog } from '@/app/components/organisms/invite-dialog';
-import { EditUserDialog } from '@/app/components/organisms/edit-user-dialog';
+import { EditUserDialog } from '@/app/components/organisms/user/edit-user-dialog';
 import { useUsers } from '@/app/features/users/hooks';
 import { useProfile } from '@/app/features/auth/hooks';
 import type { User } from '@/app/features/users/types';

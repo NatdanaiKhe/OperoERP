@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { Mail } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/app/components/atoms/button';
 import { Input } from '@/app/components/atoms/input';
-import { Label } from '@/app/components/ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
-import { apiFetch, ApiError } from '@/app/lib/api-client';
+import { Field } from '@/app/components/molecules/field';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/atoms/card';
+import { AuthTemplate } from '@/app/components/templates/auth-template';
+import { apiFetch, apiErrorMessage } from '@/app/lib/api-client';
 import { Logo } from '@/app/components/atoms/logo';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -31,14 +33,14 @@ export default function ForgotPasswordPage() {
       });
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+      setError(apiErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <AuthTemplate>
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <div className="mx-auto mb-4">
@@ -58,15 +60,8 @@ export default function ForgotPasswordPage() {
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-              {error && (
-                <div role="alert" className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-              <div>
-                <Label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Email
-                </Label>
+              {error && <FormAlert>{error}</FormAlert>}
+              <Field htmlFor="email" label="Email">
                 <Input
                   id="email"
                   type="email"
@@ -77,7 +72,7 @@ export default function ForgotPasswordPage() {
                   required
                   autoFocus
                 />
-              </div>
+              </Field>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </Button>
@@ -85,6 +80,6 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthTemplate>
   );
 }

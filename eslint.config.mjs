@@ -21,4 +21,22 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn'],
     },
   },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/components/atoms/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/app/components/ui/*'],
+              message:
+                'Import from atoms or molecules instead of components/ui directly.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

@@ -14,13 +14,13 @@ datasource db {
 }
 
 model User {
-  id        String  @id @default(cuid())
-  username  String  @unique
-  email     String  @unique
+  id        String    @id @default(cuid())
+  username  String    @unique
+  email     String    @unique
   password  String?
-  firstName String  @map("first_name")
-  lastName  String  @map("last_name")
-  isActive  Boolean @default(true) @map("is_active")
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  isActive  Boolean   @default(true) @map("is_active")
   deletedAt DateTime? @map("deleted_at")
 
   departmentId String?
@@ -174,15 +174,16 @@ model Company {
 
   departments Department[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   roles     Role[]
+  customers Customer[]
 
   @@map("companies")
 }
 
 model Department {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   deletedAt   DateTime? @map("deleted_at")
@@ -198,4 +199,25 @@ model Department {
   @@unique([companyId, name])
   @@index([deletedAt])
   @@map("departments")
+}
+
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  contactPerson String?   @map("contact_person")
+  email         String
+  phone         String?
+  address       String?
+  taxId         String?   @map("tax_id")
+  notes         String?
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  @@unique([companyId, taxId])
+  @@unique([companyId, email])
+  @@index([companyId, name])
+  @@map("customers")
 }
