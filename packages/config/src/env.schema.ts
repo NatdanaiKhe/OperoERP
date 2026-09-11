@@ -4,7 +4,7 @@ import { DEFAULT_WEB_ORIGIN } from './defaults';
 /**
  * Canonical environment-variable schema for the monorepo.
  * Used by both the API (via Nest ConfigModule) and the database package
- * (via validateEnv in prisma.config.ts / seed.ts).
+ * (via validateDatabaseEnv in prisma.config.ts / seed.ts).
  *
  * NEXT_PUBLIC_API_URL is intentionally NOT here — it is a web-only public
  * variable that lives in apps/web, not in the centralized config.

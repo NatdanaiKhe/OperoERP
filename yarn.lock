@@ -2784,7 +2784,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@radix-ui/react-label@npm:2.1.15, @radix-ui/react-label@npm:^2.1.15":
+"@radix-ui/react-label@npm:2.1.15":
   version: 2.1.15
   resolution: "@radix-ui/react-label@npm:2.1.15"
   dependencies:
@@ -3299,7 +3299,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@radix-ui/react-slot@npm:1.3.3, @radix-ui/react-slot@npm:^1.3.3":
+"@radix-ui/react-slot@npm:1.3.3":
   version: 1.3.3
   resolution: "@radix-ui/react-slot@npm:1.3.3"
   dependencies:
@@ -4414,6 +4414,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/node@npm:^22.20.2":
+  version: 22.20.2
+  resolution: "@types/node@npm:22.20.2"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10c0/1940dbec0c65a454c3651a282970fbfc998e0f0a5492bf5e067d8d9185f0c47cacc0d028153c481c4e6ecd19381ab03bf3f2efadb0cfacd702e74b6d5e4b212e
+  languageName: node
+  linkType: hard
+
 "@types/passport-jwt@npm:^4.0.1":
   version: 4.0.1
   resolution: "@types/passport-jwt@npm:4.0.1"
@@ -5153,14 +5162,12 @@ __metadata:
   resolution: "OperoERP@workspace:."
   dependencies:
     "@eslint/js": "npm:^10.0.1"
-    "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^26.1.2"
     eslint: "npm:^9.18.0"
     prettier: "npm:^3.9.6"
     turbo: "npm:^2.10.7"
     typescript: "npm:^5.7.3"
     typescript-eslint: "npm:^8.65.0"
-    zod: "npm:^4.4.3"
   languageName: unknown
   linkType: soft
 
@@ -5417,6 +5424,7 @@ __metadata:
     "@types/cookie-parser": "npm:^1.4.8"
     "@types/express": "npm:^5.0.0"
     "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^22.20.2"
     "@types/passport": "npm:^1.0.17"
     "@types/passport-jwt": "npm:^4.0.1"
     "@types/supertest": "npm:^7.0.0"
@@ -6089,15 +6097,6 @@ __metadata:
   version: 1.1.1
   resolution: "cluster-key-slot@npm:1.1.1"
   checksum: 10c0/079b1ae86b20e2d53308a877b08de5e830722a45c07810569d0dab4955bed569da33ac9f79998289d014adf02cca7223a0647cb0ee6548a12ab3c4f9beac1377
-  languageName: node
-  linkType: hard
-
-"cn@npm:^0.2.6":
-  version: 0.2.6
-  resolution: "cn@npm:0.2.6"
-  bin:
-    cn: bin/cn.mjs
-  checksum: 10c0/7d5744771e897061e210d5aa49563d254518e7e032ec372991d8e1ebb1d61057b4ec538810de31ac267153e610c141ec54b0befd006c0220e772a652824b9830
   languageName: node
   linkType: hard
 
@@ -11397,6 +11396,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
+  languageName: node
+  linkType: hard
+
 "undici-types@npm:~8.3.0":
   version: 8.3.0
   resolution: "undici-types@npm:8.3.0"
@@ -11644,8 +11650,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "web@workspace:apps/web"
   dependencies:
-    "@radix-ui/react-label": "npm:^2.1.15"
-    "@radix-ui/react-slot": "npm:^1.3.3"
     "@tailwindcss/postcss": "npm:^4"
     "@tanstack/react-query": "npm:5.101.4"
     "@tanstack/react-query-devtools": "npm:5.101.4"
@@ -11653,7 +11657,6 @@ __metadata:
     "@types/react-dom": "npm:^19"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
-    cn: "npm:^0.2.6"
     lucide-react: "npm:^1.31.0"
     next: "npm:16.3.3"
     radix-ui: "npm:^1.6.7"

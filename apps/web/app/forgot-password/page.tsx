@@ -10,6 +10,7 @@ import { AuthTemplate } from '@/app/components/templates/auth-template';
 import { apiFetch, apiErrorMessage } from '@/app/lib/api-client';
 import { Logo } from '@/app/components/atoms/logo';
 import { FormAlert } from '@/app/components/molecules/form-alert';
+import { EMAIL_REGEX } from '@/app/lib/utils';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email.trim() || !EMAIL_REGEX.test(email)) {
       setError('Enter a valid email address.');
       return;
     }

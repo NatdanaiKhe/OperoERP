@@ -8,6 +8,7 @@ import { Input } from '@/app/components/atoms/input';
 import { Select } from '@/app/components/atoms/select';
 import { Field } from '@/app/components/molecules/field';
 import { FormAlert } from '@/app/components/molecules/form-alert';
+import { DialogShell } from '@/app/components/molecules/dialog-shell';
 import { apiErrorMessage, ApiError } from '@/app/lib/api-client';
 import {
   Table,
@@ -256,60 +257,49 @@ export default function DepartmentsPage() {
 
       {/* Blocked-delete reassignment dialog */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDeleteTarget(null)}
-            aria-hidden
-          />
-          <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground">
-              Department in use
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {blockedCount}
-              </span>{' '}
-              active user(s) are assigned to “{deleteTarget.name}”. Reassign
-              them to another department to delete it.
-            </p>
+        <DialogShell
+          title="Department in use"
+          onClose={() => setDeleteTarget(null)}
+        >
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{blockedCount}</span>{' '}
+            active user(s) are assigned to “{deleteTarget.name}”. Reassign them
+            to another department to delete it.
+          </p>
 
-            <form onSubmit={handleReassignAndDelete} className="mt-4 space-y-4">
-              <Field htmlFor="reassign-target" label="Move users to">
-                <Select
-                  id="reassign-target"
-                  value={targetDept}
-                  onValueChange={setTargetDept}
-                  disabled={reassignMut.isPending}
-                  placeholder="Select a department"
-                  options={otherDepartments.map((d) => ({
-                    value: d.id,
-                    label: d.name,
-                  }))}
-                />
-              </Field>
+          <form onSubmit={handleReassignAndDelete} className="mt-4 space-y-4">
+            <Field htmlFor="reassign-target" label="Move users to">
+              <Select
+                id="reassign-target"
+                value={targetDept}
+                onValueChange={setTargetDept}
+                disabled={reassignMut.isPending}
+                placeholder="Select a department"
+                options={otherDepartments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                }))}
+              />
+            </Field>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={reassignMut.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!targetDept || reassignMut.isPending}
-                >
-                  {reassignMut.isPending
-                    ? 'Reassigning...'
-                    : 'Reassign & Delete'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeleteTarget(null)}
+                disabled={reassignMut.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!targetDept || reassignMut.isPending}
+              >
+                {reassignMut.isPending ? 'Reassigning...' : 'Reassign & Delete'}
+              </Button>
+            </div>
+          </form>
+        </DialogShell>
       )}
     </div>
   );

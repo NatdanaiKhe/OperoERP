@@ -1,235 +1,13 @@
-// Set env vars BEFORE any Nest imports so ConfigModule.forRoot picks them up
-// (dotenv loaded by @nestjs/config does NOT override existing process.env).
-process.env.NODE_ENV = 'test';
-process.env.PORT = '4001';
-process.env.DATABASE_URL =
-  'postgresql://mock:mock@localhost:5432/mock?schema=public';
-process.env.JWT_SECRET = 'test-jwt-secret-at-least-32-characters-long-for-e2e';
-process.env.JWT_EXPIRES_IN = '15m';
-process.env.CORS_ORIGIN = 'http://localhost:3000';
-process.env.WEB_APP_URL = 'http://localhost:3000';
-process.env.INVITE_TOKEN_TTL_HOURS = '48';
-process.env.RESET_TOKEN_TTL_HOURS = '1';
-process.env.RESEND_API_KEY = 're_test_key';
-process.env.MAIL_FROM = 'Opero ERP <no-reply@example.com>';
-process.env.RESEND_INVITE_TEMPLATE_ID = 'tpl_invite';
-process.env.RESEND_RESET_TEMPLATE_ID = 'tpl_reset';
-process.env.REDIS_URL = 'redis://localhost:6379';
+import './helpers';
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bullmq';
 import request from 'supertest';
-import cookieParser from 'cookie-parser';
 import * as bcrypt from 'bcrypt';
-import { AppModule } from '@/app.module';
-import { PrismaService } from '@/prisma/prisma.service';
-import { EmailProcessor } from '@/notification/email.processor';
-
-// ---------------------------------------------------------------------------
-// In-memory Prisma mock — mimics the subset of PrismaService methods that
-// AuthService and AuthController call during the auth flow.
-// ---------------------------------------------------------------------------
-function createMockPrisma() {
-  const users = new Map<string, Record<string, unknown>>();
-  const refreshTokens = new Map<string, Record<string, unknown>>();
-  const tokens = new Map<string, Record<string, unknown>>();
-  const departments = new Map<string, Record<string, unknown>>();
-  const roles = new Map<string, Record<string, unknown>>();
-  let nextUserId = 1;
-  let nextTokenId = 1;
-  let nextRefreshTokenId = 1;
-
-  return {
-    _seed: { departments, roles },
-
-    user: {
-      findUnique: jest
-        .fn()
-        .mockImplementation((args: { where: Record<string, unknown> }) => {
-          const { where } = args;
-          if (where.id) {
-            return Promise.resolve(users.get(where.id as string) ?? null);
-          }
-          if (where.email) {
-            for (const u of users.values()) {
-              if (u.email === where.email) return Promise.resolve(u);
-            }
-            return Promise.resolve(null);
-          }
-          if (where.username) {
-            for (const u of users.values()) {
-              if (u.username === where.username) return Promise.resolve(u);
-            }
-            return Promise.resolve(null);
-          }
-          return Promise.resolve(null);
-        }),
-
-      findMany: jest
-        .fn()
-        .mockImplementation(() => Promise.resolve(Array.from(users.values()))),
-
-      create: jest
-        .fn()
-        .mockImplementation((args: { data: Record<string, unknown> }) => {
-          const id = String(nextUserId++);
-          const data = { ...args.data };
-          // Extract role name from nested userRoles.create.roleId (new flow)
-          // or the legacy role.connect.name shape (test seeding).
-          let roleName = 'user';
-          const userRoles = data.userRoles as {
-            create?: { roleId?: string; role?: { connect?: { name?: string } } };
-          } | undefined;
-          if (userRoles?.create?.roleId) {
-            const seeded = roles.get(userRoles.create.roleId);
-            if (seeded) roleName = seeded.name as string;
-          }
-          if (userRoles?.create?.role?.connect?.name) {
-            roleName = userRoles.create.role.connect.name;
-          }
-          delete data.userRoles;
-          const user = {
-            ...data,
-            id,
-            userRoles: [{ role: { name: roleName, menuVisibility: [] } }],
-          };
-          users.set(id, user);
-          return Promise.resolve(user);
-        }),
-
-      update: jest
-        .fn()
-        .mockImplementation(
-          (args: {
-            where: { id: string };
-            data: Record<string, unknown>;
-          }) => {
-            const user = users.get(args.where.id);
-            if (user) Object.assign(user, args.data);
-            return Promise.resolve(user);
-          },
-        ),
-    },
-
-    department: {
-      findUnique: jest
-        .fn()
-        .mockImplementation((args: { where: { id: string } }) =>
-          Promise.resolve(departments.get(args.where.id) ?? null),
-        ),
-    },
-
-    role: {
-      findFirst: jest
-        .fn()
-        .mockImplementation(
-          (args: { where: { name?: string; companyId?: string } }) => {
-            const { name, companyId } = args.where;
-            for (const r of roles.values()) {
-              if (r.name === name && r.companyId === companyId) {
-                return Promise.resolve(r);
-              }
-            }
-            return Promise.resolve(null);
-          },
-        ),
-    },
-
-    refreshToken: {
-      findUnique: jest
-        .fn()
-        .mockImplementation((args: { where: Record<string, unknown> }) => {
-          for (const t of refreshTokens.values()) {
-            if (
-              t.tokenHash ===
-              (args.where as { tokenHash: string }).tokenHash
-            ) {
-              const user = users.get(t.userId as string);
-              return Promise.resolve({ ...t, user });
-            }
-          }
-          return Promise.resolve(null);
-        }),
-
-      create: jest
-        .fn()
-        .mockImplementation((args: { data: Record<string, unknown> }) => {
-          const id = String(nextRefreshTokenId++);
-          const token = { ...args.data, id, revokedAt: null };
-          refreshTokens.set(id, token);
-          return Promise.resolve(token);
-        }),
-
-      updateMany: jest
-        .fn()
-        .mockImplementation(
-          (args: {
-            where: Record<string, unknown>;
-            data: Record<string, unknown>;
-          }) => {
-            let count = 0;
-            for (const [, token] of refreshTokens) {
-              let matches = true;
-              for (const [field, value] of Object.entries(args.where)) {
-                const tokenVal = token[field];
-                if (value === null) {
-                  if (tokenVal != null) {
-                    matches = false;
-                    break;
-                  }
-                } else if (tokenVal !== value) {
-                  matches = false;
-                  break;
-                }
-              }
-              if (matches) {
-                Object.assign(token, args.data);
-                count++;
-              }
-            }
-            return Promise.resolve({ count });
-          },
-        ),
-    },
-
-    token: {
-      create: jest
-        .fn()
-        .mockImplementation((args: { data: Record<string, unknown> }) => {
-          const id = String(nextTokenId++);
-          const token = { ...args.data, id, usedAt: null };
-          tokens.set(id, token);
-          return Promise.resolve(token);
-        }),
-
-      findUnique: jest
-        .fn()
-        .mockImplementation((args: { where: Record<string, unknown> }) => {
-          const tokenHash = (args.where as { tokenHash: string }).tokenHash;
-          for (const t of tokens.values()) {
-            if (t.tokenHash === tokenHash) return Promise.resolve(t);
-          }
-          return Promise.resolve(null);
-        }),
-
-      update: jest
-        .fn()
-        .mockImplementation(
-          (args: {
-            where: { id: string };
-            data: Record<string, unknown>;
-          }) => {
-            const token = tokens.get(args.where.id);
-            if (token) Object.assign(token, args.data);
-            return Promise.resolve(token);
-          },
-        ),
-
-      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
-    },
-  };
-}
+import { INestApplication } from '@nestjs/common';
+import {
+  createMockPrisma,
+  createTestApp,
+  extractRefreshToken,
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -286,27 +64,7 @@ describe('Auth (e2e)', () => {
       companyId: 'company-1',
     });
 
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(PrismaService)
-      .useValue(mockPrisma)
-      .overrideProvider(getQueueToken('email'))
-      .useValue(emailQueueMock)
-      .overrideProvider(EmailProcessor)
-      .useValue({})
-      .compile();
-
-    app = moduleRef.createNestApplication();
-
-    // Mirror main.ts wiring
-    app.setGlobalPrefix('api/v1', { exclude: ['health'] });
-    app.use(cookieParser());
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
-
-    await app.init();
+    app = await createTestApp(mockPrisma, emailQueueMock);
   });
 
   afterAll(async () => {
@@ -325,12 +83,9 @@ describe('Auth (e2e)', () => {
     expect(res.body.accessToken).toEqual(expect.any(String));
     adminAccessToken = res.body.accessToken;
 
-    const cookies = res.headers['set-cookie'] as unknown as
-      | string[]
-      | undefined;
-    refreshTokenValue =
-      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
-      '';
+    refreshTokenValue = extractRefreshToken(
+      res.headers['set-cookie'] as unknown as string[] | undefined,
+    );
   });
 
   // -----------------------------------------------------------------------
@@ -405,12 +160,9 @@ describe('Auth (e2e)', () => {
     expect(res.body.accessToken).toEqual(expect.any(String));
     userAccessToken = res.body.accessToken;
 
-    const cookies = res.headers['set-cookie'] as unknown as
-      | string[]
-      | undefined;
-    refreshTokenValue =
-      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
-      '';
+    refreshTokenValue = extractRefreshToken(
+      res.headers['set-cookie'] as unknown as string[] | undefined,
+    );
     expect(refreshTokenValue.length).toBeGreaterThan(0);
   });
 
@@ -487,12 +239,9 @@ describe('Auth (e2e)', () => {
     expect(res.body.accessToken).toEqual(expect.any(String));
     userAccessToken = res.body.accessToken;
 
-    const cookies = res.headers['set-cookie'] as unknown as
-      | string[]
-      | undefined;
-    refreshTokenValue =
-      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
-      '';
+    refreshTokenValue = extractRefreshToken(
+      res.headers['set-cookie'] as unknown as string[] | undefined,
+    );
   });
 
   // -----------------------------------------------------------------------
@@ -506,12 +255,9 @@ describe('Auth (e2e)', () => {
 
     expect(res.body.accessToken).toEqual(expect.any(String));
     const cookies = res.headers['set-cookie'] as unknown as
-      | string[]
-      | undefined;
+      string[] | undefined;
     expect(cookies?.some((c) => c.startsWith('refresh_token='))).toBe(true);
-    refreshTokenValue =
-      cookies?.find((c) => c.startsWith('refresh_token='))?.match(/refresh_token=([^;]+)/)?.[1] ??
-      '';
+    refreshTokenValue = extractRefreshToken(cookies);
   });
 
   // -----------------------------------------------------------------------

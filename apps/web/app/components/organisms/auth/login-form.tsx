@@ -7,8 +7,7 @@ import { Button } from '@/app/components/atoms/button';
 import { apiErrorMessage } from '@/app/lib/api-client';
 import { useLogin } from '@/app/features/auth/hooks';
 import { FormAlert } from '@/app/components/molecules/form-alert';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_REGEX } from '@/app/lib/utils';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');

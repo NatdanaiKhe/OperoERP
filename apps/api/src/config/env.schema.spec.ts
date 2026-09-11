@@ -1,4 +1,4 @@
-import { validateEnv } from '@opero/config';
+import { envSchema } from '@opero/config';
 
 const validBase: Record<string, string | number> = {
   NODE_ENV: 'test',
@@ -14,41 +14,40 @@ const validBase: Record<string, string | number> = {
 };
 
 describe('env schema — REDIS_URL', () => {
-  it('throws when REDIS_URL is missing', () => {
+  it('fails when REDIS_URL is missing', () => {
     const { REDIS_URL, ...withoutRedis } = validBase;
-    expect(() =>
-      validateEnv(withoutRedis as NodeJS.ProcessEnv),
-    ).toThrow();
+    const { error } = envSchema.validate(withoutRedis);
+    expect(error).toBeTruthy();
   });
 
   it('accepts a valid redis:// URL', () => {
-    const env = validateEnv(validBase as NodeJS.ProcessEnv);
-    expect(env.REDIS_URL).toBe('redis://localhost:6379');
+    const { value, error } = envSchema.validate(validBase);
+    expect(error).toBeFalsy();
+    expect(value.REDIS_URL).toBe('redis://localhost:6379');
   });
 
   it('accepts a valid rediss:// URL', () => {
-    const env = validateEnv({
+    const { value, error } = envSchema.validate({
       ...validBase,
       REDIS_URL: 'rediss://localhost:6379',
-    } as NodeJS.ProcessEnv);
-    expect(env.REDIS_URL).toBe('rediss://localhost:6379');
+    });
+    expect(error).toBeFalsy();
+    expect(value.REDIS_URL).toBe('rediss://localhost:6379');
   });
 
-  it('throws for a non-URI value', () => {
-    expect(() =>
-      validateEnv({
-        ...validBase,
-        REDIS_URL: 'not-a-url',
-      } as NodeJS.ProcessEnv),
-    ).toThrow();
+  it('fails for a non-URI value', () => {
+    const { error } = envSchema.validate({
+      ...validBase,
+      REDIS_URL: 'not-a-url',
+    });
+    expect(error).toBeTruthy();
   });
 
-  it('throws for a non-redis scheme', () => {
-    expect(() =>
-      validateEnv({
-        ...validBase,
-        REDIS_URL: 'http://localhost:6379',
-      } as NodeJS.ProcessEnv),
-    ).toThrow();
+  it('fails for a non-redis scheme', () => {
+    const { error } = envSchema.validate({
+      ...validBase,
+      REDIS_URL: 'http://localhost:6379',
+    });
+    expect(error).toBeTruthy();
   });
 });

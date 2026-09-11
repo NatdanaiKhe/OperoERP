@@ -6,10 +6,6 @@ import {
   Users,
   UserCog,
   Building2,
-  Package,
-  ShoppingCart,
-  SquareCheck,
-  FileText,
   Plus,
   Settings,
   LifeBuoy,
@@ -41,10 +37,6 @@ const ALL_NAV = [
     menuKey: 'department_management',
   },
   { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
-  // { label: 'Products', href: '/dashboard/products', icon: Package, menuKey: 'products' },
-  // { label: 'Sales', href: '/dashboard/sales', icon: ShoppingCart, menuKey: 'sales' },
-  // { label: 'Approvals', href: '/dashboard/approvals', icon: SquareCheck, menuKey: 'approvals' },
-  // { label: 'Reports', href: '/dashboard/reports', icon: FileText, menuKey: 'reports' },
 ] as const;
 
 export function Sidebar({ open, onNavClick }: SidebarProps) {
