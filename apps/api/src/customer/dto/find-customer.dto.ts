@@ -5,7 +5,6 @@ export class FindCustomersDto {
   @IsOptional() @IsString() email?: string;
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() taxId?: string;
-  @IsOptional() @IsString() companyId?: string;
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number = 1;
 

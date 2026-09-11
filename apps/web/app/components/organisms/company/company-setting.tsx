@@ -10,6 +10,7 @@ import { useCompany, useUpdateCompany } from '@/app/features/company/hooks';
 import type { Company, UpdateCompanyPayload } from '@/app/features/company/types';
 import { apiErrorMessage } from '@/app/lib/api-client';
 import { FormAlert } from '@/app/components/molecules/form-alert';
+import { EMAIL_REGEX } from '@/app/lib/utils';
 
 function CompanySettings() {
   const { data: profile } = useProfile();
@@ -42,7 +43,6 @@ function CompanySettings() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_REGEX = /^[+\d][\d\s().-]{6,19}$/;
 
   function validate(): string | null {
