@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, useRefreshAuth } from '@/app/features/auth/hooks';
+import { useRequireAuth } from '@/app/features/auth/hooks';
 import { DashboardTemplate } from '@/app/components/templates/dashboard-template';
 
 export default function DashboardLayout({
@@ -11,18 +11,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { accessToken } = useAuth();
-  const { isFetching } = useRefreshAuth();
-
-  const triedRefresh = !isFetching && !accessToken;
+  const status = useRequireAuth();
 
   useEffect(() => {
-    if (triedRefresh) {
-      router.replace('/login');
-    }
-  }, [triedRefresh, router]);
+    if (status === 'unauthed') router.replace('/login');
+  }, [status, router]);
 
-  if (!accessToken) return null;
+  if (status !== 'authed') return null;
 
   return <DashboardTemplate>{children}</DashboardTemplate>;
 }

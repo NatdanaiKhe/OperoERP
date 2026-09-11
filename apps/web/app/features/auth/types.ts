@@ -14,3 +14,5 @@ export interface Profile {
   userRoles: UserRole[];
   menuConfig: string[];
 }
+
+export type AuthStatus = 'loading' | 'authed' | 'unauthed';

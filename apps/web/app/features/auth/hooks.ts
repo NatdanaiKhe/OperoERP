@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from './store';
 import { login, logout, refresh, fetchProfile, updateProfile } from './api';
+import { AuthStatus } from './types';
 
 export const PROFILE_KEY = ['auth', 'profile'] as const;
 const REFRESH_KEY = ['auth', 'refresh'] as const;
@@ -14,12 +15,6 @@ export function useAuth() {
   return { accessToken, user };
 }
 
-/**
- * Tries to restore the access token using the httpOnly refresh cookie.
- * Runs automatically on mount when no accessToken is in the store.
- * On success: stores the new access token → useProfile auto-fires.
- * On failure: the caller checks the result and redirects to /login.
- */
 export function useRefreshAuth() {
   const accessToken = useAuthStore((s) => s.accessToken);
 
@@ -100,4 +95,13 @@ export function useCanAccess(menu: string) {
     canAccess,
     isLoading,
   };
+}
+
+export function useRequireAuth(): AuthStatus {
+  const { accessToken } = useAuth();
+  const { isFetching } = useRefreshAuth();
+
+  if (accessToken) return 'authed';
+  if (isFetching) return 'loading';
+  return 'unauthed';
 }
