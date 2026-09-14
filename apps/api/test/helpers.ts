@@ -99,7 +99,15 @@ export function createMockPrisma() {
           const user = {
             ...data,
             id,
-            userRoles: [{ role: { name: roleName, menuVisibility: [] } }],
+            userRoles: [
+              {
+                role: {
+                  name: roleName,
+                  menuVisibility: [],
+                  rolePermissions: [],
+                },
+              },
+            ],
           };
           users.set(id, user);
           return Promise.resolve(user);

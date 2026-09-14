@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
 import { Pencil, Plus, Trash2, X, Check } from 'lucide-react';
 import { Button } from '@/app/components/atoms/button';
 import { Input } from '@/app/components/atoms/input';
@@ -36,17 +35,6 @@ import type { Department } from '@/app/features/department/types';
 export default function DepartmentsPage() {
   const { data: departments, isLoading, isError } = useDepartments();
   const { data: profile } = useProfile();
-  const router = useRouter();
-
-  const menuConfig = profile?.menuConfig ?? [];
-  // Same permission level as User Management (admin/superadmin).
-  const canAccess = menuConfig.includes('department_management');
-
-  useEffect(() => {
-    if (profile && !canAccess) {
-      router.replace('/dashboard');
-    }
-  }, [profile, canAccess, router]);
 
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -62,10 +50,6 @@ export default function DepartmentsPage() {
   const updateMut = useUpdateDepartment();
   const deleteMut = useDeleteDepartment();
   const reassignMut = useReassignDepartmentUsers();
-
-  if (profile && !canAccess) {
-    return null;
-  }
 
   const companyId = profile?.companyId ?? null;
   const otherDepartments =

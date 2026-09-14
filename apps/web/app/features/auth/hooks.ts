@@ -97,6 +97,18 @@ export function useCanAccess(menu: string) {
   };
 }
 
+export function usePermission(...required: string[]) {
+  const { data: profile, isLoading } = useProfile();
+
+  const isSuperAdmin =
+    profile?.userRoles?.some((r) => r.role.name === 'superadmin') ?? false;
+
+  const allow =
+    isSuperAdmin || required.some((p) => profile?.permissions?.includes(p));
+
+  return { allow, isLoading };
+}
+
 export function useRequireAuth(): AuthStatus {
   const { accessToken } = useAuth();
   const { isFetching } = useRefreshAuth();

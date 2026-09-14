@@ -791,6 +791,7 @@ describe('AuthService', () => {
                 { menuKey: 'dashboard', visible: true },
                 { menuKey: 'admin', visible: false },
               ],
+              rolePermissions: [{ permission: { name: 'customer:read' } }],
             },
           },
         ],
@@ -804,8 +805,111 @@ describe('AuthService', () => {
         expect.any(Function),
       );
       expect(result).toEqual(
-        expect.objectContaining({ id: 'u1', menuConfig: ['dashboard'] }),
+        expect.objectContaining({
+          id: 'u1',
+          menuConfig: ['dashboard'],
+          permissions: ['customer:read'],
+        }),
       );
+    });
+
+    it('merges permissions across roles (roles duplicated permissions)', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        username: 'jane',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isActive: true,
+        lastLogin: null,
+        userRoles: [
+          {
+            role: {
+              name: 'sales_representative',
+              companyId: 'c1',
+              menuVisibility: [],
+              rolePermissions: [
+                { permission: { name: 'customer:read' } },
+                { permission: { name: 'customer:create' } },
+              ],
+            },
+          },
+          {
+            role: {
+              name: 'accountant',
+              companyId: 'c1',
+              menuVisibility: [],
+              rolePermissions: [
+                { permission: { name: 'customer:read' } },
+                { permission: { name: 'payment:read' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await service.profile('u1');
+
+      expect(result.permissions.sort()).toEqual([
+        'customer:create',
+        'customer:read',
+        'payment:read',
+      ]);
+    });
+
+    it('returns empty permissions for roles with no grants', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        username: 'jane',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isActive: true,
+        lastLogin: null,
+        userRoles: [
+          {
+            role: {
+              name: 'user',
+              companyId: 'c1',
+              menuVisibility: [],
+              rolePermissions: [],
+            },
+          },
+        ],
+      });
+
+      const result = await service.profile('u1');
+
+      expect(result.permissions).toEqual([]);
+    });
+
+    it('exposes permissions for superadmin without server-side special-casing', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        username: 'super',
+        email: 'super@example.com',
+        firstName: 'Super',
+        lastName: 'Admin',
+        isActive: true,
+        lastLogin: null,
+        userRoles: [
+          {
+            role: {
+              name: 'superadmin',
+              companyId: 'c1',
+              menuVisibility: [],
+              // Superadmin may have no RolePermission rows; the server stays
+              // honest and returns whatever is seeded.
+              rolePermissions: [],
+            },
+          },
+        ],
+      });
+
+      const result = await service.profile('u1');
+
+      expect(Array.isArray(result.permissions)).toBe(true);
+      expect(result.permissions).toEqual([]);
     });
 
     it('throws UnauthorizedException when user not found', async () => {

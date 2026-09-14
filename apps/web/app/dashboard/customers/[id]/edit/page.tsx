@@ -6,23 +6,23 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/app/components/atoms/button';
 import { CustomerForm } from '@/app/components/organisms/customer/customer-form';
 import { FormAlert } from '@/app/components/molecules/form-alert';
-import { useCanAccess } from '@/app/features/auth/hooks';
+import { usePermission } from '@/app/features/auth/hooks';
 import { useCustomer } from '@/app/features/customer/hooks';
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const { canAccess, isLoading: gateLoading } = useCanAccess('customers');
+  const { allow, isLoading: gateLoading } = usePermission('customer:update');
   const { data, isLoading, isError } = useCustomer(id);
 
   useEffect(() => {
-    if (!gateLoading && !canAccess) {
+    if (!gateLoading && !allow) {
       router.replace('/dashboard');
     }
-  }, [gateLoading, canAccess, router]);
+  }, [gateLoading, allow, router]);
 
-  if (gateLoading || !canAccess) return null;
+  if (gateLoading || !allow) return null;
 
   if (isLoading) {
     return (

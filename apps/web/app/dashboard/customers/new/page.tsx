@@ -3,19 +3,19 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CustomerForm } from '@/app/components/organisms/customer/customer-form';
-import { useCanAccess } from '@/app/features/auth/hooks';
+import { usePermission } from '@/app/features/auth/hooks';
 
 export default function NewCustomerPage() {
   const router = useRouter();
-  const { canAccess, isLoading } = useCanAccess('customers');
+  const { allow, isLoading } = usePermission('customer:create');
 
   useEffect(() => {
-    if (!isLoading && !canAccess) {
+    if (!isLoading && !allow) {
       router.replace('/dashboard');
     }
-  }, [isLoading, canAccess, router]);
+  }, [isLoading, allow, router]);
 
-  if (isLoading || !canAccess) return null;
+  if (isLoading || !allow) return null;
 
   return <CustomerForm />;
 }

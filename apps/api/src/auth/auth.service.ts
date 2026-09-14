@@ -125,6 +125,9 @@ export class AuthService {
                 name: true,
                 companyId: true,
                 menuVisibility: { select: { menuKey: true, visible: true } },
+                rolePermissions: {
+                  select: { permission: { select: { name: true } } },
+                },
               },
             },
           },
@@ -136,9 +139,15 @@ export class AuthService {
     }
     // Merge menu visibility from all roles (OR: if any role grants visibility, it's visible).
     const visibleKeys = new Set<string>();
+    // OR-merge permissions across roles — mirrors PermissionsGuard, so the
+    // client can gate on the same union the API enforces.
+    const grantedPermissions = new Set<string>();
     for (const ur of user.userRoles) {
       for (const mv of ur.role.menuVisibility) {
         if (mv.visible) visibleKeys.add(mv.menuKey);
+      }
+      for (const rp of ur.role.rolePermissions) {
+        grantedPermissions.add(rp.permission.name);
       }
     }
     const result = {
@@ -152,6 +161,7 @@ export class AuthService {
       companyId: user.userRoles[0]?.role.companyId ?? null,
       userRoles: user.userRoles.map((ur) => ({ role: { name: ur.role.name } })),
       menuConfig: [...visibleKeys],
+      permissions: [...grantedPermissions],
     };
     return result;
   }

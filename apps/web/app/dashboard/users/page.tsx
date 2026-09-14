@@ -1,32 +1,19 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo } from 'react';
 import { UserPlus, Search } from 'lucide-react';
 import { Button, Input } from '@/app/components/atoms';
 import { UserTable } from '@/app/components/organisms/user/user-table';
 import { InviteDialog } from '@/app/components/organisms/invite-dialog';
 import { EditUserDialog } from '@/app/components/organisms/user/edit-user-dialog';
 import { useUsers } from '@/app/features/users/hooks';
-import { useProfile } from '@/app/features/auth/hooks';
 import type { User } from '@/app/features/users/types';
 
 export default function UsersPage() {
   const { data: users, isLoading, isError } = useUsers();
-  const { data: profile } = useProfile();
-  const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
-
-  const menuConfig = profile?.menuConfig ?? [];
-  const canAccess = menuConfig.includes('user_management');
-
-  useEffect(() => {
-    if (profile && !canAccess) {
-      router.replace('/dashboard');
-    }
-  }, [profile, canAccess, router]);
 
   const filtered = useMemo(() => {
     if (!users) return [];
@@ -45,10 +32,6 @@ export default function UsersPage() {
         .some((v) => v!.toLowerCase().includes(q)),
     );
   }, [users, search]);
-
-  if (profile && !canAccess) {
-    return null;
-  }
 
   return (
     <div className="space-y-6">

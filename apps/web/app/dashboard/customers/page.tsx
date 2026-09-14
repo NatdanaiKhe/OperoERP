@@ -29,7 +29,6 @@ import {
   TableEmpty,
 } from '@/app/components/molecules/table-placeholder';
 import { useCustomers } from '@/app/features/customer/hooks';
-import { useCanAccess } from '@/app/features/auth/hooks';
 import type {
   Customer,
   CustomerSearchField,
@@ -85,7 +84,6 @@ function exportCsv(rows: Customer[]) {
 export default function CustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canAccess, isLoading: gateLoading } = useCanAccess('customers');
 
   const [field, setField] = useState<CustomerSearchField>('name');
   const [query, setQuery] = useState('');
@@ -99,12 +97,6 @@ export default function CustomersPage() {
     return () => clearTimeout(t);
   }, [query]);
 
-  useEffect(() => {
-    if (!gateLoading && !canAccess) {
-      router.replace('/dashboard');
-    }
-  }, [gateLoading, canAccess, router]);
-
   const hasSearch = debouncedQuery.trim().length > 0;
   const { data, isLoading, isError, isFetching, refetch } = useCustomers({
     field: hasSearch ? field : undefined,
@@ -112,8 +104,6 @@ export default function CustomersPage() {
     page,
     pageSize: PAGE_SIZE,
   });
-
-  if (gateLoading || !canAccess) return null;
 
   const customers = data?.data ?? [];
   const meta = data?.meta;

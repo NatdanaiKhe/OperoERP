@@ -13,6 +13,7 @@ export interface Profile {
   companyId: string | null;
   userRoles: UserRole[];
   menuConfig: string[];
+  permissions: string[];
 }
 
 export type AuthStatus = 'loading' | 'authed' | 'unauthed';
