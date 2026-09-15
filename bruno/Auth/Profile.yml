@@ -8,6 +8,15 @@ http:
   url: '{{baseUrl}}/auth/profile'
   auth: inherit
 
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const data = res.getBody();
+        if (!Array.isArray(data.permissions)) {
+          throw new Error("profile response must include a permissions array");
+        }
+
 settings:
   encodeUrl: true
   timeout: 0

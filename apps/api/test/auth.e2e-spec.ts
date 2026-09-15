@@ -176,6 +176,7 @@ describe('Auth (e2e)', () => {
       .expect(200);
 
     expect(res.body.email).toBe('jane@example.com');
+    expect(Array.isArray(res.body.permissions)).toBe(true);
   });
 
   // -----------------------------------------------------------------------
