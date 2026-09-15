@@ -174,10 +174,14 @@ model Company {
 
   departments Department[]
 
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  roles     Role[]
-  customers Customer[]
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  roles             Role[]
+  customers         Customer[]
+  products          Product[]
+  productCategories ProductCategory[]
+  uoms              UnitOfMeasure[]
+  uomConversions    UnitOfMeasureConversion[]
 
   @@map("companies")
 }

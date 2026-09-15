@@ -16,6 +16,7 @@ import { QueueModule } from '@/queue/queue.module';
 import { CompanyModule } from '@/company/company.module';
 import { DepartmentModule } from '@/department/department.module';
 import { CustomerModule } from '@/customer/customer.module';
+import { ProductModule } from '@/product/product.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CustomerModule } from '@/customer/customer.module';
     CompanyModule,
     DepartmentModule,
     CustomerModule,
+    ProductModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
