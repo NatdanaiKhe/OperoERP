@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import type { JwtPayload } from '@/common/decorators/current-user.decorator';
+import type { Request } from 'express';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -19,6 +20,8 @@ describe('ProductController', () => {
     companyId: 'company-1',
     isSuperAdmin: false,
   } as JwtPayload;
+
+  const req = {} as Request;
 
   beforeEach(async () => {
     service = {
@@ -45,12 +48,13 @@ describe('ProductController', () => {
     const dto = { name: 'Widget', baseUomId: 'uom-1' };
     service.create.mockResolvedValue({ id: '1', ...dto });
 
-    await controller.create(mockUser, dto as never);
+    await controller.create(mockUser, dto as never, req);
 
     expect(service.create).toHaveBeenCalledWith(
       dto,
       mockUser.companyId,
       mockUser.userId,
+      req,
     );
   });
 
@@ -75,25 +79,27 @@ describe('ProductController', () => {
     const dto = { name: 'Widget v2' };
     service.update.mockResolvedValue({ id: '1', ...dto });
 
-    await controller.update('1', dto as never, mockUser);
+    await controller.update('1', dto as never, mockUser, req);
 
     expect(service.update).toHaveBeenCalledWith(
       '1',
       dto,
       mockUser.companyId,
       mockUser.userId,
+      req,
     );
   });
 
   it('should pass companyId and userId to remove', async () => {
     service.remove.mockResolvedValue({ id: '1' });
 
-    await controller.remove('1', mockUser);
+    await controller.remove('1', mockUser, req);
 
     expect(service.remove).toHaveBeenCalledWith(
       '1',
       mockUser.companyId,
       mockUser.userId,
+      req,
     );
   });
 });

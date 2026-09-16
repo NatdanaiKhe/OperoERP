@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -17,6 +18,7 @@ import {
   type JwtPayload,
 } from '@/common/decorators/current-user.decorator';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import type { Request } from 'express';
 
 @Controller('product')
 export class ProductController {
@@ -24,8 +26,12 @@ export class ProductController {
 
   @Post()
   @RequirePermissions('product:create')
-  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateProductDto) {
-    return this.productService.create(dto, user.companyId, user.userId);
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateProductDto,
+    @Req() req: Request,
+  ) {
+    return this.productService.create(dto, user.companyId, user.userId, req);
   }
 
   @Get()
@@ -46,13 +52,24 @@ export class ProductController {
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ) {
-    return this.productService.update(id, dto, user.companyId, user.userId);
+    return this.productService.update(
+      id,
+      dto,
+      user.companyId,
+      user.userId,
+      req,
+    );
   }
 
   @Delete(':id')
   @RequirePermissions('product:delete')
-  remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.productService.remove(id, user.companyId, user.userId);
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.productService.remove(id, user.companyId, user.userId, req);
   }
 }
