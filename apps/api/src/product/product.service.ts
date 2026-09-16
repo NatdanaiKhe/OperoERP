@@ -1,18 +1,52 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Prisma } from 'database';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FindProductsDto } from './dto/find-product.dto';
+import { AuditAction, AuditLogService } from '@/audit/audit-log.service';
+import { Request } from 'express';
 
 @Injectable()
 export class ProductService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) {}
 
-  async create(dto: CreateProductDto, companyId: string, userId: string) {
-    return this.prisma.product.create({
-      data: { ...dto, companyId },
-    });
+  async create(
+    dto: CreateProductDto,
+    companyId: string,
+    requestingUserId: string,
+    req: Request,
+  ) {
+    try {
+      const product = await this.prisma.product.create({
+        data: { ...dto, companyId },
+      });
+
+      await this.auditLog.log({
+        action: AuditAction.PRODUCT_CREATED,
+        userId: requestingUserId,
+        req,
+        metadata: { productId: product.id },
+      });
+      return product;
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Product with this SKU already exists in this company',
+        );
+      }
+      throw err;
+    }
   }
 
   async findAll(
@@ -39,10 +73,10 @@ export class ProductService {
   }
 
   async findOne(id: string, companyId: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id, companyId },
+    const product = await this.prisma.product.findFirst({
+      where: { id, companyId, deletedAt: null },
     });
-    if (!product || product.deletedAt) {
+    if (!product) {
       throw new NotFoundException('Product not found');
     }
     return product;
@@ -52,26 +86,61 @@ export class ProductService {
     id: string,
     dto: UpdateProductDto,
     companyId: string,
-    userId: string,
+    requestingUserId: string,
+    req: Request,
   ) {
     try {
-      return await this.prisma.product.update({
-        where: { id, companyId },
+      const product = await this.prisma.product.update({
+        where: { id, companyId, deletedAt: null },
         data: dto,
       });
-    } catch {
-      throw new NotFoundException('Product not found');
+
+      await this.auditLog.log({
+        action: AuditAction.PRODUCT_UPDATED,
+        userId: requestingUserId,
+        req,
+        metadata: { productId: id },
+      });
+      return product;
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Product not found');
+      }
+      throw err;
     }
   }
 
-  async remove(id: string, companyId: string, userId: string) {
+  async remove(
+    id: string,
+    companyId: string,
+    requestingUserId: string,
+    req: Request,
+  ) {
     try {
-      return await this.prisma.product.update({
-        where: { id, companyId },
+      const product = await this.prisma.product.update({
+        where: { id, companyId, deletedAt: null },
         data: { deletedAt: new Date() },
       });
-    } catch {
-      throw new NotFoundException('Product not found');
+
+      await this.auditLog.log({
+        action: AuditAction.PRODUCT_DELETED,
+        userId: requestingUserId,
+        req,
+        metadata: { productId: id },
+      });
+
+      return product;
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Product not found');
+      }
+      throw err;
     }
   }
 }
