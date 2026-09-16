@@ -35,12 +35,14 @@ export function createMockPrisma() {
   const tokens = new Map<string, Record<string, unknown>>();
   const companies = new Map<string, Record<string, unknown>>();
   const departments = new Map<string, Record<string, unknown>>();
+  const products = new Map<string, Record<string, unknown>>();
   const roles = new Map<string, Record<string, unknown>>();
   let nextUserId = 1;
   let nextTokenId = 1;
   let nextRefreshTokenId = 1;
   let nextCompanyId = 1;
   let nextDepartmentId = 1;
+  let nextProductId = 1;
 
   return {
     _seed: { departments, roles },
@@ -80,6 +82,7 @@ export function createMockPrisma() {
           // Extract role name from nested userRoles.create.roleId (invite
           // flow) or the legacy role.connect.name shape (test seeding).
           let roleName = 'user';
+          let roleCompanyId: string | null = null;
           const userRoles = data.userRoles as
             | {
                 create?: {
@@ -90,7 +93,10 @@ export function createMockPrisma() {
             | undefined;
           if (userRoles?.create?.roleId) {
             const seeded = roles.get(userRoles.create.roleId);
-            if (seeded) roleName = seeded.name as string;
+            if (seeded) {
+              roleName = seeded.name as string;
+              roleCompanyId = (seeded.companyId as string) ?? null;
+            }
           }
           if (userRoles?.create?.role?.connect?.name) {
             roleName = userRoles.create.role.connect.name;
@@ -103,6 +109,7 @@ export function createMockPrisma() {
               {
                 role: {
                   name: roleName,
+                  companyId: roleCompanyId,
                   menuVisibility: [],
                   rolePermissions: [],
                 },
@@ -335,6 +342,93 @@ export function createMockPrisma() {
           departments.delete(args.where.id);
           return Promise.resolve(department);
         }),
+    },
+
+    product: {
+      create: jest
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) => {
+          const id = String(nextProductId++);
+          const product = {
+            ...args.data,
+            id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          };
+          products.set(id, product);
+          return Promise.resolve(product);
+        }),
+
+      findUnique: jest
+        .fn()
+        .mockImplementation(
+          (args: { where: { id: string; companyId?: string } }) => {
+            const { id, companyId } = args.where;
+            const product = products.get(id);
+            if (!product) return Promise.resolve(null);
+            if (companyId && product.companyId !== companyId) {
+              return Promise.resolve(null);
+            }
+            return Promise.resolve(product);
+          },
+        ),
+
+      findMany: jest
+        .fn()
+        .mockImplementation(
+          (args?: {
+            where?: { companyId?: string; deletedAt?: null };
+            skip?: number;
+            take?: number;
+          }) => {
+            let all = Array.from(products.values());
+            const where = args?.where;
+            if (where?.companyId) {
+              all = all.filter((p) => p.companyId === where.companyId);
+            }
+            if (where?.deletedAt === null) {
+              all = all.filter((p) => p.deletedAt == null);
+            }
+            const skip = args?.skip ?? 0;
+            const take = args?.take ?? all.length;
+            return Promise.resolve(all.slice(skip, skip + take));
+          },
+        ),
+
+      count: jest
+        .fn()
+        .mockImplementation(
+          (args?: { where?: { companyId?: string; deletedAt?: null } }) => {
+            let all = Array.from(products.values());
+            const where = args?.where;
+            if (where?.companyId) {
+              all = all.filter((p) => p.companyId === where.companyId);
+            }
+            if (where?.deletedAt === null) {
+              all = all.filter((p) => p.deletedAt == null);
+            }
+            return Promise.resolve(all.length);
+          },
+        ),
+
+      update: jest
+        .fn()
+        .mockImplementation(
+          (args: {
+            where: { id: string; companyId?: string };
+            data: Record<string, unknown>;
+          }) => {
+            const { id, companyId } = args.where;
+            const product = products.get(id);
+            if (!product || (companyId && product.companyId !== companyId)) {
+              return Promise.reject(new Error('Product not found'));
+            }
+            Object.assign(product, args.data);
+            product.updatedAt = new Date();
+            return Promise.resolve(product);
+          },
+        ),
     },
 
     role: {

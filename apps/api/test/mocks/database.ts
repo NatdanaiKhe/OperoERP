@@ -3,5 +3,8 @@
 // and cannot be resolved in a CJS Jest environment.
 // Unit tests already mock PrismaService directly, so this stub is safe.
 export const PrismaClient = jest.fn();
-export const Prisma = { Prisma: jest.fn() };
+export const Prisma = {
+  Prisma: jest.fn(),
+  PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {},
+};
 export const PrismaPg = jest.fn();
