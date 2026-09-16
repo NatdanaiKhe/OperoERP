@@ -3,13 +3,13 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { Prisma } from 'database';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FindProductsDto } from './dto/find-product.dto';
 import { AuditAction, AuditLogService } from '@/audit/audit-log.service';
 import { Request } from 'express';
+import { Prisma } from 'database';
 
 @Injectable()
 export class ProductService {
@@ -73,7 +73,7 @@ export class ProductService {
   }
 
   async findOne(id: string, companyId: string) {
-    const product = await this.prisma.product.findFirst({
+    const product = await this.prisma.product.findUnique({
       where: { id, companyId, deletedAt: null },
     });
     if (!product) {

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductService } from './product.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { Request } from 'express';
+import { AuditLogService } from '@/audit/audit-log.service';
 
 const companyId = 'company-id';
 const productId = 'product-id';
@@ -21,7 +23,7 @@ const product = {
 
 const products = [
   product,
-    {
+  {
     id: 'product-id-2',
     name: 'Product 2',
     description: 'Description of Product 2',
@@ -34,6 +36,8 @@ const products = [
     companyId: companyId,
   },
 ];
+
+const req = {} as Request;
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -56,6 +60,7 @@ describe('ProductService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
@@ -77,7 +82,7 @@ describe('ProductService', () => {
       id: productId,
     });
 
-    const result = await service.create(product, companyId, userId);
+    const result = await service.create(product, companyId, userId, req);
 
     expect(mockPrismaService.product.create).toHaveBeenCalledWith({
       data: { ...product, companyId },
@@ -105,7 +110,7 @@ describe('ProductService', () => {
     const result = await service.findOne(productId, companyId);
 
     expect(mockPrismaService.product.findUnique).toHaveBeenCalledWith({
-      where: { id: productId, companyId },
+      where: { id: productId, companyId, deletedAt: null },
     });
     expect(result).toEqual(product);
   });
@@ -127,10 +132,11 @@ describe('ProductService', () => {
       updatedProduct,
       companyId,
       userId,
+      req,
     );
 
     expect(mockPrismaService.product.update).toHaveBeenCalledWith({
-      where: { id: productId, companyId },
+      where: { id: productId, companyId, deletedAt: null },
       data: updatedProduct,
     });
     expect(result).toEqual(updatedProduct);
@@ -138,11 +144,11 @@ describe('ProductService', () => {
 
   it('should throw an error if product not found during update', async () => {
     mockPrismaService.product.update.mockRejectedValue(
-      new Error('Product not found'),
+      new NotFoundException('Product not found'),
     );
 
     await expect(
-      service.update(productId, product, companyId, userId),
+      service.update(productId, product, companyId, userId, req),
     ).rejects.toThrow(new NotFoundException(`Product not found`));
   });
 
@@ -150,10 +156,10 @@ describe('ProductService', () => {
     const deletedProduct = { ...product, deletedAt: new Date() };
     mockPrismaService.product.update.mockResolvedValue(deletedProduct);
 
-    const result = await service.remove(productId, companyId, userId);
+    const result = await service.remove(productId, companyId, userId, req);
 
     expect(mockPrismaService.product.update).toHaveBeenCalledWith({
-      where: { id: productId, companyId },
+      where: { id: productId, companyId, deletedAt: null },
       data: { deletedAt: expect.any(Date) },
     });
     expect(result).toEqual(deletedProduct);
@@ -161,11 +167,11 @@ describe('ProductService', () => {
 
   it('should throw an error if product not found during delete', async () => {
     mockPrismaService.product.update.mockRejectedValue(
-      new Error('Product not found'),
+      new NotFoundException('Product not found'),
     );
 
-    await expect(service.remove(productId, companyId, userId)).rejects.toThrow(
-      new NotFoundException(`Product not found`),
-    );
+    await expect(
+      service.remove(productId, companyId, userId, req),
+    ).rejects.toThrow(new NotFoundException(`Product not found`));
   });
 });
