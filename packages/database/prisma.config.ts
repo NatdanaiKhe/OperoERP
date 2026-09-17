@@ -7,7 +7,7 @@ import { validateDatabaseEnv } from '@opero/config';
 const appEnv = validateDatabaseEnv(process.env);
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: 'prisma/',
   migrations: {
     path: 'prisma/migrations',
     seed: 'node dist/seed.js',

@@ -1,0 +1,29 @@
+info:
+  name: Create Product
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/product"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Standing Desk",
+        "baseUomId": "{{uomId}}",
+        "sku": "DESK-001",
+        "type": "STOCKABLE",
+        "trackingMode": "NONE",
+        "defaultSalesPrice": 5900,
+        "defaultCost": 3200,
+        "defaultTaxRate": 7.00,
+        "isSellable": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

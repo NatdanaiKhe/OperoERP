@@ -15,6 +15,7 @@ import { Button } from '@/app/components/atoms';
 import { Input } from '@/app/components/atoms';
 import { Select } from '@/app/components/atoms';
 import { FormAlert } from '@/app/components/molecules/form-alert';
+import { QueryError } from '@/app/components/molecules/query-error';
 import {
   Table,
   TableHead,
@@ -194,17 +195,11 @@ export default function CustomersPage() {
       )}
 
       {isError ? (
-        <FormAlert className="flex items-center justify-between">
-          Failed to load customers. Please try again.
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            Retry
-          </Button>
-        </FormAlert>
+        <QueryError
+          message="Failed to load customers. Please try again."
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

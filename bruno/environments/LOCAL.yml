@@ -20,3 +20,7 @@ variables:
     value: dept-uuid-1
   - name: customerId
     value:
+  - name: productId
+    value:
+  - name: uomId
+    value:

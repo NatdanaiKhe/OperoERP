@@ -11,4 +11,5 @@ export type SelectProps = {
   onValueChange?: (value: string) => void;
   id?: string;
   disabled?: boolean;
+  className?: string;
 };
