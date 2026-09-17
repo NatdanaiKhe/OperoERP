@@ -167,7 +167,7 @@ export default function ProductsPage() {
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="group relative w-28">
+            <div className="group relative">
               <Select
                 value={field}
                 onValueChange={(v) => {
@@ -175,22 +175,24 @@ export default function ProductsPage() {
                   if (hasSearch) resetPage();
                 }}
                 options={FIELD_OPTIONS}
+                className="w-28"
               />
             </div>
-            <Input
-              icon={<Search className="h-4 w-4" />}
-              placeholder="Search products by name or SKU..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                resetPage();
-              }}
-              onClear={() => {
-                setQuery('');
-                resetPage();
-              }}
-              className="flex-1 min-w-48"
-            />
+            <div className="flex-1 max-w-120">
+              <Input
+                icon={<Search className="h-4 w-4" />}
+                placeholder="Search products by name or SKU..."
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  resetPage();
+                }}
+                onClear={() => {
+                  setQuery('');
+                  resetPage();
+                }}
+              />
+            </div>
 
             <Select
               value={category}
@@ -280,7 +282,9 @@ export default function ProductsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                              router.push(`/dashboard/products/${product.id}/edit`)
+                              router.push(
+                                `/dashboard/products/${product.id}/edit`,
+                              )
                             }
                             aria-label={`Edit ${product.name}`}
                           >
