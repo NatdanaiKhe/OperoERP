@@ -6,7 +6,7 @@ import { Button } from '@/app/components/atoms';
 import { Input } from '@/app/components/atoms';
 import { Select } from '@/app/components/atoms';
 import { Badge } from '@/app/components/atoms/badge';
-import { FormAlert } from '@/app/components/molecules/form-alert';
+import { QueryError } from '@/app/components/molecules/query-error';
 import {
   Table,
   TableHead,
@@ -104,6 +104,7 @@ export default function ProductsPage() {
       No products match your filters.
       <Button
         onClick={clearFilters}
+        variant="ghost"
         className="ml-2 font-medium text-primary hover:underline"
       >
         Clear filters
@@ -125,17 +126,11 @@ export default function ProductsPage() {
       </div>
 
       {isError ? (
-        <FormAlert className="flex items-center justify-between">
-          Failed to load products. Please try again.
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            Retry
-          </Button>
-        </FormAlert>
+        <QueryError
+          message="Failed to load products. Please try again."
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">

@@ -7,6 +7,7 @@ import { Input } from '@/app/components/atoms/input';
 import { Select } from '@/app/components/atoms/select';
 import { Field } from '@/app/components/molecules/field';
 import { FormAlert } from '@/app/components/molecules/form-alert';
+import { QueryError } from '@/app/components/molecules/query-error';
 import { DialogShell } from '@/app/components/molecules/dialog-shell';
 import { apiErrorMessage, ApiError } from '@/app/lib/api-client';
 import {
@@ -33,7 +34,13 @@ import { useProfile } from '@/app/features/auth/hooks';
 import type { Department } from '@/app/features/department/types';
 
 export default function DepartmentsPage() {
-  const { data: departments, isLoading, isError } = useDepartments();
+  const {
+    data: departments,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useDepartments();
   const { data: profile } = useProfile();
 
   const [newName, setNewName] = useState('');
@@ -157,9 +164,11 @@ export default function DepartmentsPage() {
       </form>
 
       {isError ? (
-        <p className="text-sm text-destructive">
-          Failed to load departments. Please try again.
-        </p>
+        <QueryError
+          message="Failed to load departments. Please try again."
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
       ) : isLoading ? (
         <TableSkeleton rows={4} columns={2} />
       ) : departments && departments.length === 0 ? (
