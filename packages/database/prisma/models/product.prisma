@@ -71,6 +71,8 @@ model Product {
     defaultSalesPrice Decimal? @map("default_sales_price") @db.Decimal(18, 4)
     defaultCost       Decimal? @map("default_cost") @db.Decimal(18, 4)
 
+    defaultTaxRate Decimal? @map("default_tax_rate") @db.Decimal(5, 2)
+
     isSellable Boolean @default(true) @map("is_sellable")
     isActive   Boolean @default(true) @map("is_active")
 
