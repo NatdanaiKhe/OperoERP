@@ -40,6 +40,12 @@ export class ProductController {
     return this.productService.findAll(user.companyId, filter);
   }
 
+  @Get('category')
+  @RequirePermissions('product:read')
+  findAllCategory(@CurrentUser() user: JwtPayload) {
+    return this.productService.findAllCategory(user.companyId);
+  }
+
   @Get(':id')
   @RequirePermissions('product:read')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {

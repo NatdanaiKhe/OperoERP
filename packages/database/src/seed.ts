@@ -7,7 +7,11 @@
  *   or:     `npx prisma db seed` (from packages/database)
  */
 import 'dotenv/config';
-import { PrismaClient } from './generated/prisma/client';
+import {
+  PrismaClient,
+  ProductType,
+  TrackingMode,
+} from './generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { validateDatabaseEnv } from '@opero/config';
 import * as bcrypt from 'bcrypt';
@@ -273,6 +277,123 @@ const MENU_DEFAULTS: Record<string, string[]> = {
   accountant: ['dashboard', 'reports', 'customers'],
 };
 
+const uoms = [
+  { name: 'Piece', symbol: 'pc' },
+  { name: 'Kilogram', symbol: 'kg' },
+  { name: 'Liter', symbol: 'L' },
+  { name: 'Box', symbol: 'box' },
+  { name: 'Meter', symbol: 'm' },
+];
+
+const categories = [
+  { name: 'General' },
+  { name: 'Electronics' },
+  { name: 'Raw Materials' },
+  { name: 'Packaging' },
+  { name: 'Finished Goods' },
+];
+
+const products: {
+  sku: string;
+  name: string;
+  description: string;
+  category: string;
+  uom: string;
+  type: ProductType;
+  trackingMode: TrackingMode;
+}[] = [
+  {
+    sku: 'PROD-0001',
+    name: 'Sample Product',
+    description: 'Default seeded product',
+    category: 'General',
+    uom: 'Piece',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.NONE,
+  },
+  {
+    sku: 'PROD-0002',
+    name: 'USB-C Cable 1m',
+    description: 'Braided USB-C to USB-C cable',
+    category: 'Electronics',
+    uom: 'Piece',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.NONE,
+  },
+  {
+    sku: 'PROD-0003',
+    name: 'Bluetooth Speaker',
+    description: 'Portable BT5.0 speaker',
+    category: 'Electronics',
+    uom: 'Piece',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.SERIAL,
+  },
+  {
+    sku: 'PROD-0004',
+    name: 'Steel Sheet 2mm',
+    description: 'Cold rolled steel sheet',
+    category: 'Raw Materials',
+    uom: 'Kilogram',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.LOT,
+  },
+  {
+    sku: 'PROD-0005',
+    name: 'PVC Resin',
+    description: 'Industrial PVC resin pellets',
+    category: 'Raw Materials',
+    uom: 'Kilogram',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.LOT,
+  },
+  {
+    sku: 'PROD-0006',
+    name: 'Machine Oil',
+    description: 'Lubricant for machinery',
+    category: 'Raw Materials',
+    uom: 'Liter',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.LOT,
+  },
+  {
+    sku: 'PROD-0007',
+    name: 'Corrugated Box M',
+    description: 'Medium shipping box',
+    category: 'Packaging',
+    uom: 'Box',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.NONE,
+  },
+  {
+    sku: 'PROD-0008',
+    name: 'Bubble Wrap Roll',
+    description: '50m protective wrap roll',
+    category: 'Packaging',
+    uom: 'Meter',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.NONE,
+  },
+  {
+    sku: 'PROD-0009',
+    name: 'Assembled Widget A',
+    description: 'Finished assembled widget',
+    category: 'Finished Goods',
+    uom: 'Piece',
+    type: ProductType.STOCKABLE,
+    trackingMode: TrackingMode.SERIAL,
+  },
+  {
+    sku: 'PROD-0010',
+    name: 'Consulting Service',
+    description: 'Non-stock service item',
+    category: 'Finished Goods',
+    uom: 'Piece',
+    type: ProductType.SERVICE,
+    trackingMode: TrackingMode.NONE,
+  },
+];
+
 async function main() {
   // 1. Seed permissions (idempotent upsert by unique name).
   const permissionIds = new Map<string, string>();
@@ -487,6 +608,56 @@ async function main() {
       `Seeded menu visibility for "${roleName}" (${visibleKeys.length}/${MENU_KEYS.length} visible).`,
     );
   }
+
+  // 8. Seed default UOM, category, and sample product for the default company.
+  const uomMap: Record<string, string> = {};
+  for (const u of uoms) {
+    const rec = await prisma.unitOfMeasure.upsert({
+      where: {
+        companyId_name: { companyId: DEFAULT_COMPANY_ID, name: u.name },
+      },
+      update: { symbol: u.symbol, deletedAt: null },
+      create: { companyId: DEFAULT_COMPANY_ID, name: u.name, symbol: u.symbol },
+    });
+    uomMap[u.name] = rec.id;
+  }
+
+  const categoryMap: Record<string, string> = {};
+  for (const c of categories) {
+    const rec = await prisma.productCategory.upsert({
+      where: {
+        companyId_name: { companyId: DEFAULT_COMPANY_ID, name: c.name },
+      },
+      update: { deletedAt: null },
+      create: { companyId: DEFAULT_COMPANY_ID, name: c.name },
+    });
+    categoryMap[c.name] = rec.id;
+  }
+
+  for (const p of products) {
+    await prisma.product.upsert({
+      where: { companyId_sku: { companyId: DEFAULT_COMPANY_ID, sku: p.sku } },
+      update: {
+        deletedAt: null,
+        categoryId: categoryMap[p.category],
+        baseUomId: uomMap[p.uom],
+      },
+      create: {
+        companyId: DEFAULT_COMPANY_ID,
+        sku: p.sku,
+        name: p.name,
+        description: p.description,
+        categoryId: categoryMap[p.category],
+        baseUomId: uomMap[p.uom],
+        type: p.type,
+        trackingMode: p.trackingMode,
+      },
+    });
+  }
+
+  console.log(
+    `Seeded ${uoms.length} UOMs, ${categories.length} categories, ${products.length} products.`,
+  );
 }
 
 main()

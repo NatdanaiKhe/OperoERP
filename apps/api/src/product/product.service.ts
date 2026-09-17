@@ -51,18 +51,21 @@ export class ProductService {
 
   async findAll(
     companyId: string,
-    { name, sku, page = 1, limit = 10 }: FindProductsDto,
+    { name, sku, categoryId, isActive, page = 1, limit = 10 }: FindProductsDto,
   ) {
     const where: Prisma.ProductWhereInput = {
       companyId,
       deletedAt: null,
       name: name ? { contains: name, mode: 'insensitive' } : undefined,
       sku: sku ? { contains: sku, mode: 'insensitive' } : undefined,
+      categoryId: categoryId ?? undefined,
+      isActive: isActive ?? undefined,
     };
 
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
+        include: { category: true, baseUom: true },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -111,6 +114,13 @@ export class ProductService {
       }
       throw err;
     }
+  }
+
+  async findAllCategory(companyId: string) {
+    return this.prisma.productCategory.findMany({
+      where: { companyId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
   }
 
   async remove(
