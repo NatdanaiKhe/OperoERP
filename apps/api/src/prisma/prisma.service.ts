@@ -15,16 +15,14 @@ export class PrismaService
       }),
     });
 
-    // `$extends` returns a proxy over this instance. Return it from the
-    // constructor so every consumer sees the tenant-scoped client. The
-    // lifecycle hooks live on the prototype and are not reachable through the
-    // proxy, so re-attach them explicitly.
-    const extended = this.$extends(
+    // `$extends` returns a proxy over this instance; the model delegates are
+    // only reachable through its get-trap, so nothing is copied. Return the
+    // proxy from the constructor so Nest (and every `this.prisma` consumer)
+    // holds the tenant-scoped client. The prototype lifecycle hooks resolve
+    // through the proxy too, with `this` bound to it.
+    return this.$extends(
       tenantScopeExtension as Parameters<PrismaClient['$extends']>[0],
     ) as unknown as PrismaService;
-    extended.onModuleInit = () => extended.$connect();
-    extended.onModuleDestroy = () => extended.$disconnect();
-    return extended;
   }
 
   async onModuleInit() {
