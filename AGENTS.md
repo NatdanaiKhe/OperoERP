@@ -38,7 +38,9 @@ work on top of the merged auth feature.
 
 - Three `APP_GUARD`s, in order: `JwtAuthGuard` (default-deny; `@Public()` opts out)
   → `RolesGuard` (`@Roles(...)`) → `PermissionsGuard` (`@RequirePermissions(...)`)
-- `APP_INTERCEPTOR → LoggingInterceptor`
+- `APP_INTERCEPTOR → LoggingInterceptor` then `TenantContextInterceptor`
+  (publishes `req.user.companyId` into AsyncLocalStorage for the Prisma
+  tenant-scope extension)
 - No `APP_FILTER` — errors use Nest's platform default (the former
   `AllExceptionsFilter` was removed; see `CHANGES.md`)
 - `ValidationPipe({ whitelist: true, transform: true })`
@@ -81,10 +83,17 @@ Invoice → Payment (see `REQUIREMENT.md`).
 ## Data layer
 
 - `PrismaService` (`apps/api/src/prisma/`) is the single injectable client, using
-  the `PrismaPg` adapter.
+  the `PrismaPg` adapter. It returns a `$extends` proxy that auto-injects
+  `companyId` + `deletedAt: null` into `findMany`/`findFirst`/`count`/`update`/
+  `updateMany` for the tenant-scoped models (Product, ProductCategory,
+  UnitOfMeasure, Customer, Department) from the request's AsyncLocalStorage
+  tenant. Role/User are excluded (RBAC must stay cross-company); no context →
+  unscoped (superadmin). `findUnique`/`create`/`delete` are not covered.
 - 11 models: User, Role, Permission, UserRole, RolePermission, RefreshToken,
-  Token, AuditLog, MenuVisibility, Company, Department.
-- Soft delete via `deletedAt` on User + Department; Company hard-deletes (cascade).
+  Token, AuditLog, MenuVisibility, Company, Department, plus Customer, Product,
+  ProductCategory, UnitOfMeasure.
+- Soft delete via `deletedAt` on User, Department, Customer, Product,
+  ProductCategory, UnitOfMeasure; Company hard-deletes (cascade).
 
 ## Infrastructure
 
@@ -110,6 +119,7 @@ Invoice → Payment (see `REQUIREMENT.md`).
 | API wiring / global setup               | `apps/api/src/app.module.ts`, `main.ts`                                           |
 | Web auth + api client                   | `apps/web/app/features/auth/`, `app/lib/api-client.ts`                            |
 | DB schema / Prisma client               | `packages/database/prisma/schema.prisma`, `apps/api/src/prisma/prisma.service.ts` |
+| Tenant scoping / soft delete            | `apps/api/src/prisma/tenant-scope.extension.ts`, `common/interceptors/tenant-context.interceptor.ts` |
 | Config / env                            | `packages/config/src/env.schema.ts`, `apps/api/src/config/config.module.ts`       |
 | Cache / queue / email                   | `apps/api/src/cache/`, `apps/api/src/queue/`, `apps/api/src/notification/`        |
 | Company / department                    | `apps/api/src/company/`, `apps/api/src/department/`                               |
@@ -135,6 +145,7 @@ yarn turbo db:seed
 # Testing
 yarn workspace api test
 yarn workspace api test:e2e
+RUN_DB_E2E=1 yarn workspace api test:e2e:db   # real-DB tenant-scoping proof (needs migrated DATABASE_URL)
 ```
 
 ## UI Component Guidelines

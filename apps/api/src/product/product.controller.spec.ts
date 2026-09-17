@@ -62,64 +62,53 @@ describe('ProductController', () => {
     );
   });
 
-  it('should pass companyId and filter to findAll', async () => {
+  it('should pass the filter to findAll', async () => {
     const filter = { page: 1, limit: 10 };
     service.findAll.mockResolvedValue({ data: [], meta: {} });
 
-    await controller.findAll(mockUser, filter as never);
+    await controller.findAll(filter as never);
 
-    expect(service.findAll).toHaveBeenCalledWith(mockUser.companyId, filter);
+    expect(service.findAll).toHaveBeenCalledWith(filter);
   });
 
-  it('should pass companyId to findOne', async () => {
+  it('should delegate findOne to the service', async () => {
     service.findOne.mockResolvedValue({ id: '1' });
 
-    await controller.findOne('1', mockUser);
+    await controller.findOne('1');
 
-    expect(service.findOne).toHaveBeenCalledWith('1', mockUser.companyId);
+    expect(service.findOne).toHaveBeenCalledWith('1');
   });
 
-  it('should pass companyId to findAllCategory', async () => {
+  it('should delegate findAllCategory to the service', async () => {
     service.findAllCategory.mockResolvedValue([]);
 
-    await controller.findAllCategory(mockUser);
+    await controller.findAllCategory();
 
-    expect(service.findAllCategory).toHaveBeenCalledWith(mockUser.companyId);
+    expect(service.findAllCategory).toHaveBeenCalledWith();
   });
 
-  it('should pass companyId to findAllUom', async () => {
+  it('should delegate findAllUom to the service', async () => {
     service.findAllUom.mockResolvedValue([]);
 
-    await controller.findAllUom(mockUser);
+    await controller.findAllUom();
 
-    expect(service.findAllUom).toHaveBeenCalledWith(mockUser.companyId);
+    expect(service.findAllUom).toHaveBeenCalledWith();
   });
 
-  it('should pass companyId and userId to update', async () => {
+  it('should pass userId to update', async () => {
     const dto = { name: 'Widget v2' };
     service.update.mockResolvedValue({ id: '1', ...dto });
 
     await controller.update('1', dto as never, mockUser, req);
 
-    expect(service.update).toHaveBeenCalledWith(
-      '1',
-      dto,
-      mockUser.companyId,
-      mockUser.userId,
-      req,
-    );
+    expect(service.update).toHaveBeenCalledWith('1', dto, mockUser.userId, req);
   });
 
-  it('should pass companyId and userId to remove', async () => {
+  it('should pass userId to remove', async () => {
     service.remove.mockResolvedValue({ id: '1' });
 
     await controller.remove('1', mockUser, req);
 
-    expect(service.remove).toHaveBeenCalledWith(
-      '1',
-      mockUser.companyId,
-      mockUser.userId,
-      req,
-    );
+    expect(service.remove).toHaveBeenCalledWith('1', mockUser.userId, req);
   });
 });

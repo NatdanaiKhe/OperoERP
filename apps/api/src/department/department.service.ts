@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -10,7 +14,9 @@ export class DepartmentService {
       where: { companyId_name: { companyId: dto.companyId, name: dto.name } },
     });
     if (existing && !existing.deletedAt) {
-      throw new ConflictException('Department name already exists in this company');
+      throw new ConflictException(
+        'Department name already exists in this company',
+      );
     }
     // Recreate a soft-deleted department with the same name by restoring it —
     // keeps the (companyId, name) unique constraint intact.
@@ -26,19 +32,20 @@ export class DepartmentService {
   }
 
   async findAll(companyId?: string) {
-    if (companyId) {
-      return this.prisma.department.findMany({
-        where: { companyId, deletedAt: null },
-      });
-    }
-    return this.prisma.department.findMany({ where: { deletedAt: null } });
+    // `deletedAt` is injected by the tenant-scope extension. The explicit
+    // companyId is the superadmin "pick a company" filter — when the request
+    // itself carries a company, the extension's value wins.
+    return this.prisma.department.findMany({
+      where: companyId ? { companyId } : {},
+    });
   }
 
   async findOne(id: string) {
-    const department = await this.prisma.department.findUnique({
+    // findFirst (not findUnique) so the tenant-scope extension applies.
+    const department = await this.prisma.department.findFirst({
       where: { id },
     });
-    if (!department || department.deletedAt) {
+    if (!department) {
       throw new NotFoundException('Department not found');
     }
     return department;
@@ -46,7 +53,10 @@ export class DepartmentService {
 
   async update(id: string, dto: { name?: string }) {
     await this.findOne(id);
-    return this.prisma.department.update({ where: { id }, data: { name: dto.name } });
+    return this.prisma.department.update({
+      where: { id },
+      data: { name: dto.name },
+    });
   }
 
   // Soft delete. Only blocked while active (non-deleted) users are assigned;
@@ -72,7 +82,10 @@ export class DepartmentService {
     await this.findOne(departmentId);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    return this.prisma.user.update({ where: { id: userId }, data: { departmentId } });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { departmentId },
+    });
   }
 
   // Move every active user from one department to another — the reassignment

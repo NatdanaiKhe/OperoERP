@@ -58,24 +58,24 @@ describe('CustomerController', () => {
     );
   });
 
-  it('should pass companyId to findAll', async () => {
+  it('should pass the filter to findAll', async () => {
     const filter = { name: 'John' };
     service.findAll.mockResolvedValue([]);
 
-    await controller.findAll(mockUser, filter as any);
+    await controller.findAll(filter as any);
 
-    expect(service.findAll).toHaveBeenCalledWith(mockUser.companyId, filter);
+    expect(service.findAll).toHaveBeenCalledWith(filter);
   });
 
-  it('should pass companyId to findOne', async () => {
+  it('should delegate findOne to the service', async () => {
     service.findOne.mockResolvedValue({ id: '1' });
 
-    await controller.findOne('1', mockUser);
+    await controller.findOne('1');
 
-    expect(service.findOne).toHaveBeenCalledWith('1', mockUser.companyId);
+    expect(service.findOne).toHaveBeenCalledWith('1');
   });
 
-  it('should pass companyId to update', async () => {
+  it('should pass userId to update', async () => {
     const updateDto = { name: 'Updated Name' };
     service.update.mockResolvedValue({ id: '1', ...updateDto });
 
@@ -84,22 +84,16 @@ describe('CustomerController', () => {
     expect(service.update).toHaveBeenCalledWith(
       '1',
       updateDto,
-      mockUser.companyId,
       mockUser.userId,
       req,
     );
   });
 
-  it('should pass companyId to delete', async () => {
+  it('should pass userId to delete', async () => {
     service.delete.mockResolvedValue({ id: '1' });
 
     await controller.delete('1', mockUser, req as any);
 
-    expect(service.delete).toHaveBeenCalledWith(
-      '1',
-      mockUser.companyId,
-      mockUser.userId,
-      req,
-    );
+    expect(service.delete).toHaveBeenCalledWith('1', mockUser.userId, req);
   });
 });

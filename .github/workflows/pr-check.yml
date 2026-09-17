@@ -22,6 +22,7 @@ jobs:
     # These are disposable credentials and must never point
     # at your real homelab services.
     env:
+      # The postgres service below maps container 5432 to host 5433.
       DATABASE_URL: postgresql://test:test@localhost:5432/test
       JWT_SECRET: ci-test-secret-not-used-in-production
       REDIS_URL: redis://localhost:6379
@@ -35,7 +36,7 @@ jobs:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test
         ports:
-          - 5433:5432
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -73,3 +74,12 @@ jobs:
       # Run all validation/build tasks through one Turbo invocation.
       - name: Lint, type-check, test, build
         run: yarn turbo run lint typecheck test build
+
+      # Real-database proof for the tenant-scope Prisma extension. The mocked
+      # e2e suites cannot exercise `$extends`, so this runs the env-gated spec
+      # against the disposable postgres service.
+      - name: Apply database migrations
+        run: yarn turbo db:deploy
+
+      - name: Tenant-scoping DB e2e
+        run: RUN_DB_E2E=1 yarn workspace api test:e2e:db

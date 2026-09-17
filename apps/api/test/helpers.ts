@@ -22,6 +22,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
+import { applyTenantScope } from '@/prisma/tenant-scope.extension';
 import { EmailProcessor } from '@/notification/email.processor';
 import { Prisma } from 'database';
 
@@ -39,6 +40,7 @@ export function createMockPrisma() {
   const products = new Map<string, Record<string, unknown>>();
   const productCategories = new Map<string, Record<string, unknown>>();
   const uoms = new Map<string, Record<string, unknown>>();
+  const customers = new Map<string, Record<string, unknown>>();
   const roles = new Map<string, Record<string, unknown>>();
   let nextUserId = 1;
   let nextTokenId = 1;
@@ -46,33 +48,50 @@ export function createMockPrisma() {
   let nextCompanyId = 1;
   let nextDepartmentId = 1;
   let nextProductId = 1;
+  let nextCustomerId = 1;
 
-  // Matches a stored product against the where clause the ProductService
-  // builds (companyId, soft-delete, exact categoryId/isActive, contains
-  // name/sku). Mirrors the real Prisma semantics the service relies on.
-  const matchProductWhere = (
-    p: Record<string, unknown>,
+  // Generic subset of Prisma's where semantics used by these services:
+  // scalar equality, `null` (IS NULL), `{ not: null }` and
+  // `{ contains, mode: 'insensitive' }`.
+  const matchWhere = (
+    record: Record<string, unknown>,
     where: Record<string, unknown>,
   ): boolean => {
-    if (where.companyId != null && p.companyId !== where.companyId)
-      return false;
-    if (where.deletedAt === null && p.deletedAt != null) return false;
-    if (where.categoryId != null && p.categoryId !== where.categoryId) {
-      return false;
-    }
-    if (where.isActive != null && p.isActive !== where.isActive) return false;
-    const name = where.name as { contains?: string } | undefined;
-    if (name?.contains != null) {
-      const hay = String(p.name ?? '').toLowerCase();
-      if (!hay.includes(name.contains.toLowerCase())) return false;
-    }
-    const sku = where.sku as { contains?: string } | undefined;
-    if (sku?.contains != null) {
-      const hay = String(p.sku ?? '').toLowerCase();
-      if (!hay.includes(sku.contains.toLowerCase())) return false;
+    for (const [field, value] of Object.entries(where)) {
+      if (value === undefined) continue;
+      const actual = record[field];
+      if (value === null) {
+        if (actual != null) return false;
+        continue;
+      }
+      if (typeof value === 'object') {
+        const filter = value as { contains?: string; not?: unknown };
+        if (filter.not === null && actual == null) return false;
+        if (
+          filter.contains != null &&
+          !String(actual ?? '')
+            .toLowerCase()
+            .includes(filter.contains.toLowerCase())
+        ) {
+          return false;
+        }
+        continue;
+      }
+      if (actual !== value) return false;
     }
     return true;
   };
+
+  // Mirrors the Prisma tenant-scope extension for the in-memory store: the
+  // services no longer pass companyId/deletedAt, so the mock has to inject
+  // them from the active AsyncLocalStorage tenant like the real client does.
+  const scoped = <T extends Record<string, unknown>>(
+    operation: string,
+    args?: T,
+  ): T & { where: Record<string, unknown> } =>
+    applyTenantScope(operation, args ?? ({} as T)) as T & {
+      where: Record<string, unknown>;
+    };
 
   // Resolves the `include` relations the ProductService requests.
   const withProductIncludes = (
@@ -101,7 +120,7 @@ export function createMockPrisma() {
   };
 
   return {
-    _seed: { departments, roles, products, productCategories, uoms },
+    _seed: { departments, roles, products, productCategories, uoms, customers },
 
     user: {
       findUnique: jest
@@ -347,14 +366,23 @@ export function createMockPrisma() {
 
       findMany: jest
         .fn()
-        .mockImplementation((args?: { where?: { companyId?: string } }) => {
-          const all = Array.from(departments.values());
-          if (args?.where?.companyId) {
-            return Promise.resolve(
-              all.filter((d) => d.companyId === args.where?.companyId),
-            );
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findMany', rawArgs);
+          return Promise.resolve(
+            Array.from(departments.values()).filter((d) =>
+              matchWhere(d, args.where),
+            ),
+          );
+        }),
+
+      findFirst: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findFirst', rawArgs);
+          for (const d of departments.values()) {
+            if (matchWhere(d, args.where)) return Promise.resolve(d);
           }
-          return Promise.resolve(all);
+          return Promise.resolve(null);
         }),
 
       // Handles both { where: { id } } and the compound dup-name check
@@ -383,13 +411,20 @@ export function createMockPrisma() {
 
       update: jest
         .fn()
-        .mockImplementation(
-          (args: { where: { id: string }; data: Record<string, unknown> }) => {
-            const department = departments.get(args.where.id);
-            if (department) Object.assign(department, args.data);
-            return Promise.resolve(department);
-          },
-        ),
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('update', rawArgs);
+          const department = departments.get(args.where.id as string);
+          if (!department || !matchWhere(department, args.where)) {
+            return Promise.reject(
+              new Prisma.PrismaClientKnownRequestError('Not found', {
+                code: 'P2025',
+                clientVersion: 'test',
+              }),
+            );
+          }
+          Object.assign(department, args.data ?? {});
+          return Promise.resolve(department);
+        }),
 
       delete: jest
         .fn()
@@ -418,132 +453,207 @@ export function createMockPrisma() {
 
       findUnique: jest
         .fn()
-        .mockImplementation(
-          (args: {
-            where: { id: string; companyId?: string; deletedAt?: null };
-            include?: Record<string, unknown>;
-          }) => {
-            const { id, companyId } = args.where;
-            const product = products.get(id);
-            if (!product) return Promise.resolve(null);
-            if (companyId && product.companyId !== companyId) {
-              return Promise.resolve(null);
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const where = (rawArgs.where ?? {}) as Record<string, unknown>;
+          const product = products.get(where.id as string);
+          if (!product || !matchWhere(product, where)) {
+            return Promise.resolve(null);
+          }
+          return Promise.resolve(
+            withProductIncludes(
+              product,
+              rawArgs.include as Record<string, unknown> | undefined,
+            ),
+          );
+        }),
+
+      findFirst: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findFirst', rawArgs);
+          for (const p of products.values()) {
+            if (matchWhere(p, args.where)) {
+              return Promise.resolve(
+                withProductIncludes(
+                  p,
+                  args.include as Record<string, unknown> | undefined,
+                ),
+              );
             }
-            if (args.where.deletedAt === null && product.deletedAt != null) {
-              return Promise.resolve(null);
-            }
-            return Promise.resolve(withProductIncludes(product, args.include));
-          },
-        ),
+          }
+          return Promise.resolve(null);
+        }),
 
       findMany: jest
         .fn()
-        .mockImplementation(
-          (args?: {
-            where?: Record<string, unknown>;
-            skip?: number;
-            take?: number;
-            include?: Record<string, unknown>;
-          }) => {
-            let all = Array.from(products.values());
-            if (args?.where) {
-              all = all.filter((p) => matchProductWhere(p, args.where!));
-            }
-            const skip = args?.skip ?? 0;
-            const take = args?.take ?? all.length;
-            return Promise.resolve(
-              all
-                .slice(skip, skip + take)
-                .map((p) => withProductIncludes(p, args?.include)),
-            );
-          },
-        ),
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findMany', rawArgs);
+          const all = Array.from(products.values()).filter((p) =>
+            matchWhere(p, args.where),
+          );
+          const skip = typeof args.skip === 'number' ? args.skip : 0;
+          const take = typeof args.take === 'number' ? args.take : all.length;
+          return Promise.resolve(
+            all
+              .slice(skip, skip + take)
+              .map((p) =>
+                withProductIncludes(
+                  p,
+                  args.include as Record<string, unknown> | undefined,
+                ),
+              ),
+          );
+        }),
 
       count: jest
         .fn()
-        .mockImplementation((args?: { where?: Record<string, unknown> }) => {
-          let all = Array.from(products.values());
-          if (args?.where) {
-            all = all.filter((p) => matchProductWhere(p, args.where!));
-          }
-          return Promise.resolve(all.length);
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('count', rawArgs);
+          return Promise.resolve(
+            Array.from(products.values()).filter((p) =>
+              matchWhere(p, args.where),
+            ).length,
+          );
         }),
 
       update: jest
         .fn()
-        .mockImplementation(
-          (args: {
-            where: { id: string; companyId?: string };
-            data: Record<string, unknown>;
-          }) => {
-            const { id, companyId } = args.where;
-            const product = products.get(id);
-            if (!product || (companyId && product.companyId !== companyId)) {
-              return Promise.reject(productNotFoundError());
-            }
-            Object.assign(product, args.data);
-            product.updatedAt = new Date();
-            return Promise.resolve(product);
-          },
-        ),
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('update', rawArgs);
+          const product = products.get(args.where.id as string);
+          if (!product || !matchWhere(product, args.where)) {
+            return Promise.reject(productNotFoundError());
+          }
+          Object.assign(product, args.data ?? {});
+          product.updatedAt = new Date();
+          return Promise.resolve(product);
+        }),
     },
 
     productCategory: {
       findMany: jest
         .fn()
-        .mockImplementation(
-          (args?: {
-            where?: { companyId?: string; deletedAt?: null };
-            orderBy?: { name?: 'asc' | 'desc' };
-          }) => {
-            let all = Array.from(productCategories.values());
-            const where = args?.where;
-            if (where?.companyId) {
-              all = all.filter((c) => c.companyId === where.companyId);
-            }
-            if (where?.deletedAt === null) {
-              all = all.filter((c) => c.deletedAt == null);
-            }
-            if (args?.orderBy?.name) {
-              const dir = args.orderBy.name;
-              all = all.sort((a, b) =>
-                dir === 'asc'
-                  ? String(a.name).localeCompare(String(b.name))
-                  : String(b.name).localeCompare(String(a.name)),
-              );
-            }
-            return Promise.resolve(all);
-          },
-        ),
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findMany', rawArgs);
+          let all = Array.from(productCategories.values()).filter((c) =>
+            matchWhere(c, args.where),
+          );
+          const orderBy = args.orderBy as { name?: 'asc' | 'desc' } | undefined;
+          if (orderBy?.name) {
+            const dir = orderBy.name;
+            all = all.sort((a, b) =>
+              dir === 'asc'
+                ? String(a.name).localeCompare(String(b.name))
+                : String(b.name).localeCompare(String(a.name)),
+            );
+          }
+          return Promise.resolve(all);
+        }),
     },
 
     unitOfMeasure: {
       findMany: jest
         .fn()
-        .mockImplementation(
-          (args?: {
-            where?: { companyId?: string; deletedAt?: null };
-            orderBy?: { name?: 'asc' | 'desc' };
-          }) => {
-            let all = Array.from(uoms.values());
-            const where = args?.where;
-            if (where?.companyId) {
-              all = all.filter((u) => u.companyId === where.companyId);
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findMany', rawArgs);
+          let all = Array.from(uoms.values()).filter((u) =>
+            matchWhere(u, args.where),
+          );
+          const orderBy = args.orderBy as { name?: 'asc' | 'desc' } | undefined;
+          if (orderBy?.name) {
+            const dir = orderBy.name;
+            all = all.sort((a, b) =>
+              dir === 'asc'
+                ? String(a.name).localeCompare(String(b.name))
+                : String(b.name).localeCompare(String(a.name)),
+            );
+          }
+          return Promise.resolve(all);
+        }),
+    },
+
+    customer: {
+      create: jest
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) => {
+          const id = String(nextCustomerId++);
+          const customer = {
+            ...args.data,
+            id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          };
+          customers.set(id, customer);
+          return Promise.resolve(customer);
+        }),
+
+      // Compound dup-check only; tenant-scope covers the rest.
+      findUnique: jest
+        .fn()
+        .mockImplementation((args: { where: Record<string, unknown> }) => {
+          const compound = args.where.companyId_email as
+            { companyId: string; email: string } | undefined;
+          if (!compound) return Promise.resolve(null);
+          for (const c of customers.values()) {
+            if (
+              c.companyId === compound.companyId &&
+              c.email === compound.email
+            ) {
+              return Promise.resolve(c);
             }
-            if (where?.deletedAt === null) {
-              all = all.filter((u) => u.deletedAt == null);
-            }
-            if (args?.orderBy?.name) {
-              const dir = args.orderBy.name;
-              all = all.sort((a, b) =>
-                dir === 'asc'
-                  ? String(a.name).localeCompare(String(b.name))
-                  : String(b.name).localeCompare(String(a.name)),
-              );
-            }
-            return Promise.resolve(all);
-          },
-        ),
+          }
+          return Promise.resolve(null);
+        }),
+
+      findFirst: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findFirst', rawArgs);
+          for (const c of customers.values()) {
+            if (matchWhere(c, args.where)) return Promise.resolve(c);
+          }
+          return Promise.resolve(null);
+        }),
+
+      findMany: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('findMany', rawArgs);
+          return Promise.resolve(
+            Array.from(customers.values()).filter((c) =>
+              matchWhere(c, args.where),
+            ),
+          );
+        }),
+
+      count: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('count', rawArgs);
+          return Promise.resolve(
+            Array.from(customers.values()).filter((c) =>
+              matchWhere(c, args.where),
+            ).length,
+          );
+        }),
+
+      update: jest
+        .fn()
+        .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+          const args = scoped('update', rawArgs);
+          const customer = customers.get(args.where.id as string);
+          if (!customer || !matchWhere(customer, args.where)) {
+            return Promise.reject(
+              new Prisma.PrismaClientKnownRequestError('Not found', {
+                code: 'P2025',
+                clientVersion: 'test',
+              }),
+            );
+          }
+          Object.assign(customer, args.data ?? {});
+          return Promise.resolve(customer);
+        }),
     },
 
     role: {

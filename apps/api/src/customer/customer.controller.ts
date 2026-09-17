@@ -41,14 +41,14 @@ export class CustomerController {
 
   @Get()
   @RequirePermissions('customer:read')
-  findAll(@CurrentUser() user: JwtPayload, @Query() filter: FindCustomersDto) {
-    return this.customerService.findAll(user.companyId, filter);
+  findAll(@Query() filter: FindCustomersDto) {
+    return this.customerService.findAll(filter);
   }
 
   @Get(':id')
   @RequirePermissions('customer:read')
-  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.customerService.findOne(id, user.companyId);
+  findOne(@Param('id') id: string) {
+    return this.customerService.findOne(id);
   }
 
   @Patch(':id')
@@ -59,13 +59,7 @@ export class CustomerController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    return this.customerService.update(
-      id,
-      updateCustomerDto,
-      user.companyId,
-      user.userId,
-      req,
-    );
+    return this.customerService.update(id, updateCustomerDto, user.userId, req);
   }
 
   @Delete(':id')
@@ -75,6 +69,6 @@ export class CustomerController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    return this.customerService.delete(id, user.companyId, user.userId, req);
+    return this.customerService.delete(id, user.userId, req);
   }
 }

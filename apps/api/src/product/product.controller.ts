@@ -36,26 +36,26 @@ export class ProductController {
 
   @Get()
   @RequirePermissions('product:read')
-  findAll(@CurrentUser() user: JwtPayload, @Query() filter: FindProductsDto) {
-    return this.productService.findAll(user.companyId, filter);
+  findAll(@Query() filter: FindProductsDto) {
+    return this.productService.findAll(filter);
   }
 
   @Get('category')
   @RequirePermissions('product:read')
-  findAllCategory(@CurrentUser() user: JwtPayload) {
-    return this.productService.findAllCategory(user.companyId);
+  findAllCategory() {
+    return this.productService.findAllCategory();
   }
 
   @Get('uom')
   @RequirePermissions('product:read')
-  findAllUom(@CurrentUser() user: JwtPayload) {
-    return this.productService.findAllUom(user.companyId);
+  findAllUom() {
+    return this.productService.findAllUom();
   }
 
   @Get(':id')
   @RequirePermissions('product:read')
-  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.productService.findOne(id, user.companyId);
+  findOne(@Param('id') id: string) {
+    return this.productService.findOne(id);
   }
 
   @Patch(':id')
@@ -66,13 +66,7 @@ export class ProductController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    return this.productService.update(
-      id,
-      dto,
-      user.companyId,
-      user.userId,
-      req,
-    );
+    return this.productService.update(id, dto, user.userId, req);
   }
 
   @Delete(':id')
@@ -82,6 +76,6 @@ export class ProductController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    return this.productService.remove(id, user.companyId, user.userId, req);
+    return this.productService.remove(id, user.userId, req);
   }
 }

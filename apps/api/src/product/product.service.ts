@@ -49,13 +49,16 @@ export class ProductService {
     }
   }
 
-  async findAll(
-    companyId: string,
-    { name, sku, categoryId, isActive, page = 1, limit = 10 }: FindProductsDto,
-  ) {
+  async findAll({
+    name,
+    sku,
+    categoryId,
+    isActive,
+    page = 1,
+    limit = 10,
+  }: FindProductsDto) {
+    // companyId + deletedAt are injected by the tenant-scope Prisma extension.
     const where: Prisma.ProductWhereInput = {
-      companyId,
-      deletedAt: null,
       name: name ? { contains: name, mode: 'insensitive' } : undefined,
       sku: sku ? { contains: sku, mode: 'insensitive' } : undefined,
       categoryId: categoryId ?? undefined,
@@ -75,9 +78,10 @@ export class ProductService {
     return { data, meta: { total, page, limit } };
   }
 
-  async findOne(id: string, companyId: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id, companyId, deletedAt: null },
+  async findOne(id: string) {
+    // findFirst (not findUnique) so the tenant-scope extension applies.
+    const product = await this.prisma.product.findFirst({
+      where: { id },
       include: { category: true, baseUom: true },
     });
     if (!product) {
@@ -89,13 +93,12 @@ export class ProductService {
   async update(
     id: string,
     dto: UpdateProductDto,
-    companyId: string,
     requestingUserId: string,
     req: Request,
   ) {
     try {
       const product = await this.prisma.product.update({
-        where: { id, companyId, deletedAt: null },
+        where: { id },
         data: dto,
       });
 
@@ -125,29 +128,22 @@ export class ProductService {
     }
   }
 
-  async findAllCategory(companyId: string) {
+  async findAllCategory() {
     return this.prisma.productCategory.findMany({
-      where: { companyId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
   }
 
-  async findAllUom(companyId: string) {
+  async findAllUom() {
     return this.prisma.unitOfMeasure.findMany({
-      where: { companyId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
   }
 
-  async remove(
-    id: string,
-    companyId: string,
-    requestingUserId: string,
-    req: Request,
-  ) {
+  async remove(id: string, requestingUserId: string, req: Request) {
     try {
       const product = await this.prisma.product.update({
-        where: { id, companyId, deletedAt: null },
+        where: { id },
         data: { deletedAt: new Date() },
       });
 
