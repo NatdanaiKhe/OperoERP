@@ -34,11 +34,6 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(100)
-  barcode?: string;
-
-  @IsOptional()
-  @IsString()
   categoryId?: string;
 
   @IsOptional()
@@ -60,8 +55,9 @@ export class CreateProductDto {
   defaultCost?: number;
 
   @IsOptional()
-  @IsBoolean()
-  isPurchasable?: boolean;
+  @IsNumber()
+  @Type(() => Number)
+  defaultTaxRate?: number;
 
   @IsOptional()
   @IsBoolean()

@@ -8,6 +8,7 @@
  */
 import 'dotenv/config';
 import {
+  Prisma,
   PrismaClient,
   ProductType,
   TrackingMode,
@@ -293,6 +294,8 @@ const categories = [
   { name: 'Finished Goods' },
 ];
 
+const TAX_RATE = new Prisma.Decimal('7.00');
+
 const products: {
   sku: string;
   name: string;
@@ -301,6 +304,7 @@ const products: {
   uom: string;
   type: ProductType;
   trackingMode: TrackingMode;
+  defaultTaxRate: Prisma.Decimal;
 }[] = [
   {
     sku: 'PROD-0001',
@@ -310,6 +314,7 @@ const products: {
     uom: 'Piece',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.NONE,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0002',
@@ -319,6 +324,7 @@ const products: {
     uom: 'Piece',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.NONE,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0003',
@@ -328,6 +334,7 @@ const products: {
     uom: 'Piece',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.SERIAL,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0004',
@@ -337,6 +344,7 @@ const products: {
     uom: 'Kilogram',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.LOT,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0005',
@@ -346,6 +354,7 @@ const products: {
     uom: 'Kilogram',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.LOT,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0006',
@@ -355,6 +364,7 @@ const products: {
     uom: 'Liter',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.LOT,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0007',
@@ -364,6 +374,7 @@ const products: {
     uom: 'Box',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.NONE,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0008',
@@ -373,6 +384,7 @@ const products: {
     uom: 'Meter',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.NONE,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0009',
@@ -382,6 +394,7 @@ const products: {
     uom: 'Piece',
     type: ProductType.STOCKABLE,
     trackingMode: TrackingMode.SERIAL,
+    defaultTaxRate: TAX_RATE,
   },
   {
     sku: 'PROD-0010',
@@ -391,6 +404,7 @@ const products: {
     uom: 'Piece',
     type: ProductType.SERVICE,
     trackingMode: TrackingMode.NONE,
+    defaultTaxRate: TAX_RATE,
   },
 ];
 

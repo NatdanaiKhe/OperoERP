@@ -16,7 +16,6 @@ export interface Product {
   sku: string | null;
   name: string;
   description: string | null;
-  barcode: string | null;
   type: 'STOCKABLE' | 'SERVICE' | 'NON_STOCK';
   trackingMode: 'NONE' | 'LOT' | 'SERIAL';
   categoryId: string | null;
@@ -25,7 +24,7 @@ export interface Product {
   baseUom: BaseUom;
   defaultSalesPrice: string | null;
   defaultCost: string | null;
-  isPurchasable: boolean;
+  defaultTaxRate: string | null;
   isSellable: boolean;
   isActive: boolean;
   createdAt: string;

@@ -17,7 +17,7 @@ http:
         "trackingMode": "NONE",
         "defaultSalesPrice": 5900,
         "defaultCost": 3200,
-        "isPurchasable": true,
+        "defaultTaxRate": 7.00,
         "isSellable": true
       }
   auth: inherit
