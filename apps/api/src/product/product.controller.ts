@@ -46,6 +46,12 @@ export class ProductController {
     return this.productService.findAllCategory(user.companyId);
   }
 
+  @Get('uom')
+  @RequirePermissions('product:read')
+  findAllUom(@CurrentUser() user: JwtPayload) {
+    return this.productService.findAllUom(user.companyId);
+  }
+
   @Get(':id')
   @RequirePermissions('product:read')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {

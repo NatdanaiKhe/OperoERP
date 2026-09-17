@@ -10,6 +10,7 @@ describe('ProductController', () => {
     create: jest.Mock;
     findAll: jest.Mock;
     findAllCategory: jest.Mock;
+    findAllUom: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
@@ -29,6 +30,7 @@ describe('ProductController', () => {
       create: jest.fn(),
       findAll: jest.fn(),
       findAllCategory: jest.fn(),
+      findAllUom: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
@@ -83,6 +85,14 @@ describe('ProductController', () => {
     await controller.findAllCategory(mockUser);
 
     expect(service.findAllCategory).toHaveBeenCalledWith(mockUser.companyId);
+  });
+
+  it('should pass companyId to findAllUom', async () => {
+    service.findAllUom.mockResolvedValue([]);
+
+    await controller.findAllUom(mockUser);
+
+    expect(service.findAllUom).toHaveBeenCalledWith(mockUser.companyId);
   });
 
   it('should pass companyId and userId to update', async () => {

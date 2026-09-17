@@ -85,6 +85,22 @@ describe('Product (e2e)', () => {
       .expect(400);
   });
 
+  it('POST /api/v1/product — rejects negative price with 400', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/product')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Negative', baseUomId: 'uom-1', defaultCost: -1 })
+      .expect(400);
+  });
+
+  it('POST /api/v1/product — rejects tax rate above 100 with 400', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/product')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'High Tax', baseUomId: 'uom-1', defaultTaxRate: 150 })
+      .expect(400);
+  });
+
   it('GET /api/v1/product — lists products with meta', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/product')
@@ -186,6 +202,42 @@ describe('Product (e2e)', () => {
       .expect(200);
 
     const names = (res.body as { name: string }[]).map((c) => c.name);
+    expect(names).toContain('Alpha');
+    expect(names).toContain('Beta');
+    expect(names).not.toContain('Zeta');
+    expect(names).not.toContain('Other');
+    expect([...names].sort()).toEqual(names);
+  });
+
+  it('GET /api/v1/product/uom — company-scoped, non-deleted, ordered by name', async () => {
+    const seedUom = (
+      id: string,
+      name: string,
+      companyId: string,
+      deletedAt: Date | null = null,
+    ) => {
+      mockPrisma._seed.uoms.set(id, {
+        id,
+        companyId,
+        name,
+        symbol: 'pc',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt,
+      });
+    };
+
+    seedUom('uom-b', 'Beta', COMPANY_ID);
+    seedUom('uom-a', 'Alpha', COMPANY_ID);
+    seedUom('uom-z', 'Zeta', COMPANY_ID, new Date());
+    seedUom('uom-other', 'Other', 'other-company');
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/product/uom')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const names = (res.body as { name: string }[]).map((u) => u.name);
     expect(names).toContain('Alpha');
     expect(names).toContain('Beta');
     expect(names).not.toContain('Zeta');

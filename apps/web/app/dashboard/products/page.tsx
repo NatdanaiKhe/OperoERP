@@ -1,12 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Pencil,
+  X,
+} from 'lucide-react';
 import { Button } from '@/app/components/atoms';
 import { Input } from '@/app/components/atoms';
 import { Select } from '@/app/components/atoms';
 import { Badge } from '@/app/components/atoms/badge';
 import { QueryError } from '@/app/components/molecules/query-error';
+import { FormAlert } from '@/app/components/molecules/form-alert';
 import {
   Table,
   TableHead,
@@ -50,6 +59,9 @@ function marginPercent(product: Product): string | null {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [field, setField] = useState<ProductSearchField>('name');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -57,6 +69,8 @@ export default function ProductsPage() {
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const saved = searchParams.get('saved') === '1';
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
@@ -123,7 +137,26 @@ export default function ProductsPage() {
             Manage your product catalog and pricing.
           </p>
         </div>
+        <Button onClick={() => router.push('/dashboard/products/new')}>
+          <Plus className="h-4 w-4" />
+          Add Product
+        </Button>
       </div>
+
+      {saved && (
+        <FormAlert
+          variant="success"
+          className="flex items-center justify-between"
+        >
+          Product saved.
+          <Button
+            onClick={() => router.replace('/dashboard/products')}
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </FormAlert>
+      )}
 
       {isError ? (
         <QueryError
@@ -182,8 +215,8 @@ export default function ProductsPage() {
             {isLoading ? (
               <TableSkeleton
                 rows={5}
-                columns={7}
-                gridClassName="grid-cols-[1fr_2fr_1fr_1fr_1fr_1fr_1fr]"
+                columns={8}
+                gridClassName="grid-cols-[1fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr]"
               />
             ) : products.length === 0 ? (
               <TableEmpty>{emptyState}</TableEmpty>
@@ -199,6 +232,7 @@ export default function ProductsPage() {
                       <TableHeader>Selling Price</TableHeader>
                       <TableHeader>Margin</TableHeader>
                       <TableHeader>Status</TableHeader>
+                      <TableHeader className="text-right">Actions</TableHeader>
                     </TableHeaderRow>
                   </TableHead>
                   <TableBody>
@@ -240,6 +274,19 @@ export default function ProductsPage() {
                           ) : (
                             <Badge variant="outline">Inactive</Badge>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(`/dashboard/products/${product.id}/edit`)
+                            }
+                            aria-label={`Edit ${product.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

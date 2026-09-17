@@ -5,7 +5,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -46,16 +48,20 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   defaultSalesPrice?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   defaultCost?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   @Type(() => Number)
   defaultTaxRate?: number;
 

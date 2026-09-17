@@ -23,3 +23,9 @@ export function formatCurrency(value: string | null): string {
     currency: 'USD',
   }).format(n);
 }
+
+export function decimalPrefill(value: string | null | undefined): string {
+  if (value == null) return '';
+  const n = Number(value);
+  return Number.isNaN(n) ? '' : String(n);
+}

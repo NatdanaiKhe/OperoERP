@@ -78,6 +78,7 @@ export class ProductService {
   async findOne(id: string, companyId: string) {
     const product = await this.prisma.product.findUnique({
       where: { id, companyId, deletedAt: null },
+      include: { category: true, baseUom: true },
     });
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -112,12 +113,27 @@ export class ProductService {
       ) {
         throw new NotFoundException('Product not found');
       }
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Product with this SKU already exists in this company',
+        );
+      }
       throw err;
     }
   }
 
   async findAllCategory(companyId: string) {
     return this.prisma.productCategory.findMany({
+      where: { companyId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findAllUom(companyId: string) {
+    return this.prisma.unitOfMeasure.findMany({
       where: { companyId, deletedAt: null },
       orderBy: { name: 'asc' },
     });

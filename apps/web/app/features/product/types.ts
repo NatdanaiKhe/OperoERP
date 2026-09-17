@@ -43,6 +43,21 @@ export interface ProductsResponse {
   meta: ProductsMeta;
 }
 
+export interface ProductPayload {
+  name: string;
+  baseUomId: string;
+  description?: string;
+  sku?: string;
+  categoryId?: string;
+  type?: Product['type'];
+  trackingMode?: Product['trackingMode'];
+  defaultSalesPrice?: number;
+  defaultCost?: number;
+  defaultTaxRate?: number;
+  isSellable?: boolean;
+  isActive?: boolean;
+}
+
 export type ProductSearchField = 'name' | 'sku';
 
 export interface ProductFilters {
@@ -53,3 +68,17 @@ export interface ProductFilters {
   page: number;
   limit: number;
 }
+
+export const TYPE_OPTIONS = [
+  { value: 'STOCKABLE', label: 'Stockable' },
+  { value: 'SERVICE', label: 'Service' },
+  { value: 'NON_STOCK', label: 'Non-stock' },
+];
+
+export const TRACKING_OPTIONS = [
+  { value: 'NONE', label: 'None' },
+  { value: 'LOT', label: 'Lot' },
+  { value: 'SERIAL', label: 'Serial' },
+];
+
+export const NO_CATEGORY = 'none';

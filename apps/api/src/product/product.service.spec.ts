@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductService } from './product.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { Request } from 'express';
 import { AuditLogService } from '@/audit/audit-log.service';
+import { Prisma } from 'database';
 
 const companyId = 'company-id';
 const productId = 'product-id';
@@ -49,6 +50,9 @@ describe('ProductService', () => {
       update: jest.fn(),
     },
     productCategory: {
+      findMany: jest.fn(),
+    },
+    unitOfMeasure: {
       findMany: jest.fn(),
     },
   };
@@ -140,6 +144,21 @@ describe('ProductService', () => {
     expect(result).toEqual(categories);
   });
 
+  it('get all UOMs scoped to company, non-deleted, ordered by name', async () => {
+    const uoms = [
+      { id: 'uom-id', name: 'Piece', symbol: 'pc', companyId },
+    ];
+    mockPrismaService.unitOfMeasure.findMany.mockResolvedValue(uoms);
+
+    const result = await service.findAllUom(companyId);
+
+    expect(mockPrismaService.unitOfMeasure.findMany).toHaveBeenCalledWith({
+      where: { companyId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+    expect(result).toEqual(uoms);
+  });
+
   it('should get a product by id', async () => {
     mockPrismaService.product.findUnique.mockResolvedValue(product);
 
@@ -147,6 +166,7 @@ describe('ProductService', () => {
 
     expect(mockPrismaService.product.findUnique).toHaveBeenCalledWith({
       where: { id: productId, companyId, deletedAt: null },
+      include: { category: true, baseUom: true },
     });
     expect(result).toEqual(product);
   });
@@ -186,6 +206,23 @@ describe('ProductService', () => {
     await expect(
       service.update(productId, product, companyId, userId, req),
     ).rejects.toThrow(new NotFoundException(`Product not found`));
+  });
+
+  it('should throw a conflict if SKU is duplicated during update', async () => {
+    mockPrismaService.product.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+
+    await expect(
+      service.update(productId, product, companyId, userId, req),
+    ).rejects.toThrow(
+      new ConflictException(
+        'Product with this SKU already exists in this company',
+      ),
+    );
   });
 
   it('should soft delete a product', async () => {

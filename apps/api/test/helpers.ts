@@ -517,6 +517,35 @@ export function createMockPrisma() {
         ),
     },
 
+    unitOfMeasure: {
+      findMany: jest
+        .fn()
+        .mockImplementation(
+          (args?: {
+            where?: { companyId?: string; deletedAt?: null };
+            orderBy?: { name?: 'asc' | 'desc' };
+          }) => {
+            let all = Array.from(uoms.values());
+            const where = args?.where;
+            if (where?.companyId) {
+              all = all.filter((u) => u.companyId === where.companyId);
+            }
+            if (where?.deletedAt === null) {
+              all = all.filter((u) => u.deletedAt == null);
+            }
+            if (args?.orderBy?.name) {
+              const dir = args.orderBy.name;
+              all = all.sort((a, b) =>
+                dir === 'asc'
+                  ? String(a.name).localeCompare(String(b.name))
+                  : String(b.name).localeCompare(String(a.name)),
+              );
+            }
+            return Promise.resolve(all);
+          },
+        ),
+    },
+
     role: {
       findFirst: jest
         .fn()

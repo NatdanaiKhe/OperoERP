@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import { cn } from '@/app/lib/utils';
 import type { SelectProps } from './select.types';
 
 export type { SelectOption, SelectProps } from './select.types';
@@ -16,6 +17,7 @@ export function Select({
   onValueChange,
   id,
   disabled,
+  className,
 }: SelectProps) {
   return (
     <ShadcnSelect
@@ -23,7 +25,7 @@ export function Select({
       onValueChange={onValueChange}
       disabled={disabled}
     >
-      <SelectTrigger id={id} className="bg-white">
+      <SelectTrigger id={id} className={cn('bg-white', className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
 

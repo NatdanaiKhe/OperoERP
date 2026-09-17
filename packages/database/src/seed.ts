@@ -665,6 +665,7 @@ async function main() {
         baseUomId: uomMap[p.uom],
         type: p.type,
         trackingMode: p.trackingMode,
+        defaultTaxRate: p.defaultTaxRate,
       },
     });
   }
