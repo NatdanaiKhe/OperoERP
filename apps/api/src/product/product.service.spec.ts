@@ -50,6 +50,9 @@ describe('ProductService', () => {
       count: jest.fn(),
       update: jest.fn(),
     },
+    productCategory: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -102,6 +105,41 @@ describe('ProductService', () => {
       page: 1,
       limit: 10,
     });
+  });
+
+  it('get all products applies categoryId and isActive filters and includes relations', async () => {
+    mockPrismaService.product.findMany.mockResolvedValue([]);
+    mockPrismaService.product.count.mockResolvedValue(0);
+
+    await service.findAll(companyId, {
+      categoryId: 'category-id',
+      isActive: false,
+    });
+
+    expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          companyId,
+          deletedAt: null,
+          categoryId: 'category-id',
+          isActive: false,
+        }),
+        include: { category: true, baseUom: true },
+      }),
+    );
+  });
+
+  it('get all categories scoped to company, non-deleted, ordered by name', async () => {
+    const categories = [{ id: 'category-id', name: 'Accessories', companyId }];
+    mockPrismaService.productCategory.findMany.mockResolvedValue(categories);
+
+    const result = await service.findAllCategory(companyId);
+
+    expect(mockPrismaService.productCategory.findMany).toHaveBeenCalledWith({
+      where: { companyId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+    expect(result).toEqual(categories);
   });
 
   it('should get a product by id', async () => {

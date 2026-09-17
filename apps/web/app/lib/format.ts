@@ -14,3 +14,12 @@ export function formatDateTime(value: string | null): string {
   if (!value) return '—';
   return new Date(value).toLocaleString();
 }
+
+export function formatCurrency(value: string | null): string {
+  const n = Number(value);
+  if (value == null || Number.isNaN(n)) return '—';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(n);
+}

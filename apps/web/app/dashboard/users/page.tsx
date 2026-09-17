@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { UserPlus, Search } from 'lucide-react';
 import { Button, Input } from '@/app/components/atoms';
+import { QueryError } from '@/app/components/molecules/query-error';
 import { UserTable } from '@/app/components/organisms/user/user-table';
 import { InviteDialog } from '@/app/components/organisms/invite-dialog';
 import { EditUserDialog } from '@/app/components/organisms/user/edit-user-dialog';
@@ -10,7 +11,7 @@ import { useUsers } from '@/app/features/users/hooks';
 import type { User } from '@/app/features/users/types';
 
 export default function UsersPage() {
-  const { data: users, isLoading, isError } = useUsers();
+  const { data: users, isLoading, isError, isFetching, refetch } = useUsers();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
@@ -61,9 +62,11 @@ export default function UsersPage() {
       </div>
 
       {isError ? (
-        <p className="text-sm text-destructive">
-          Failed to load users. Please try again.
-        </p>
+        <QueryError
+          message="Failed to load users. Please try again."
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
       ) : (
         <UserTable
           users={filtered}

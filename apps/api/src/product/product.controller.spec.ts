@@ -9,6 +9,7 @@ describe('ProductController', () => {
   let service: {
     create: jest.Mock;
     findAll: jest.Mock;
+    findAllCategory: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
@@ -27,6 +28,7 @@ describe('ProductController', () => {
     service = {
       create: jest.fn(),
       findAll: jest.fn(),
+      findAllCategory: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
@@ -73,6 +75,14 @@ describe('ProductController', () => {
     await controller.findOne('1', mockUser);
 
     expect(service.findOne).toHaveBeenCalledWith('1', mockUser.companyId);
+  });
+
+  it('should pass companyId to findAllCategory', async () => {
+    service.findAllCategory.mockResolvedValue([]);
+
+    await controller.findAllCategory(mockUser);
+
+    expect(service.findAllCategory).toHaveBeenCalledWith(mockUser.companyId);
   });
 
   it('should pass companyId and userId to update', async () => {

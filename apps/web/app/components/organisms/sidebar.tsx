@@ -6,6 +6,7 @@ import {
   Users,
   UserCog,
   Building2,
+  Package,
   Plus,
   Settings,
   LifeBuoy,
@@ -36,7 +37,18 @@ const ALL_NAV = [
     icon: Building2,
     menuKey: 'department_management',
   },
-  { label: 'Customers', href: '/dashboard/customers', icon: Users, menuKey: 'customers' },
+  {
+    label: 'Customers',
+    href: '/dashboard/customers',
+    icon: Users,
+    menuKey: 'customers',
+  },
+  {
+    label: 'Products',
+    href: '/dashboard/products',
+    icon: Package,
+    menuKey: 'products',
+  },
 ] as const;
 
 export function Sidebar({ open, onNavClick }: SidebarProps) {
