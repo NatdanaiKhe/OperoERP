@@ -4,6 +4,31 @@ Over-engineering cleanup. All findings from the repo-wide audit that survived
 verification were applied. Correctness, security, and tests untouched except
 where the cleanup surfaced a latent issue.
 
+## Tenant scoping + soft-delete Prisma extension (NAT-41)
+
+Centralized the per-service `companyId` / `deletedAt: null` where-clause
+bookkeeping into one Prisma client extension, so it can no longer be forgotten
+(the original bugs: product `update`/`remove` not filtering `deletedAt`,
+double soft-delete re-stamping `deletedAt`, `findOne` filtering in app code).
+
+- **New**: `prisma/tenant-context.ts` (AsyncLocalStorage store),
+  `prisma/tenant-scope.extension.ts` (`$extends` query extension),
+  `common/interceptors/tenant-context.interceptor.ts` (feeds the store from
+  `req.user.companyId` after `JwtAuthGuard`).
+- **Changed**: `prisma/prisma.service.ts` returns the `$extends` proxy (with
+  lifecycle hooks re-attached); `app.module.ts` registers the interceptor;
+  `product`/`customer`/`department` services drop the manual filters and use
+  `findFirst` where tenant filtering matters.
+- **Scoped models**: `Product`, `ProductCategory`, `UnitOfMeasure`, `Customer`,
+  `Department`. `Role`/`User` intentionally excluded (RBAC stays cross-company).
+- **Fail-open** when no tenant context (company-less superadmin / public
+  route); soft-delete filtering always applies. Restores
+  (`data.deletedAt = null`) target deleted rows only.
+- **Tests**: new extension + interceptor specs, new `customer.e2e-spec.ts`,
+  and `test/tenant-scoping.db-e2e-spec.ts` — a real-DB, env-gated proof
+  (`RUN_DB_E2E=1 yarn workspace api test:e2e:db`) that the mocked suites cannot
+  provide. CI now migrates + runs it.
+
 ## Redis cache — re-implemented, not removed
 
 The cache is back, but on a design the team signed off on:

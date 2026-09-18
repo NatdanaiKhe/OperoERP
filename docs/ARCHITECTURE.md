@@ -49,6 +49,8 @@ Registered in `apps/api/src/app.module.ts`:
 | `QueueModule`        | BullMQ root connection parsed from `REDIS_URL`                          | `apps/api/src/queue/queue.module.ts`       |
 | `CompanyModule`      | CRUD; superadmin creates/deletes, admin updates                         | `apps/api/src/company/`                    |
 | `DepartmentModule`   | CRUD + `assignUser` + `reassignUsers`                                   | `apps/api/src/department/`                 |
+| `CustomerModule`     | CRUD (soft delete), company-scoped                                      | `apps/api/src/customer/`                   |
+| `ProductModule`      | Product CRUD (soft delete) + category/UoM list endpoints                | `apps/api/src/product/`                    |
 
 ## Auth flows
 
@@ -119,18 +121,45 @@ Prisma 7 (`prisma-client` generator, CJS output to `src/generated/prisma`,
 gitignored), PostgreSQL via `@prisma/adapter-pg`. `PrismaService` is the single
 injectable client (global module).
 
+### Tenant scoping + soft-delete extension
+
+`PrismaService` returns a `$extends` proxy whose `query` extension injects
+`companyId` + `deletedAt: null` into the `where` of `findMany` / `findFirst` /
+`count` / `update` / `updateMany` for the **tenant-scoped models**: `Product`,
+`ProductCategory`, `UnitOfMeasure`, `Customer`, `Department`
+(`apps/api/src/prisma/tenant-scope.extension.ts`).
+
+- **Tenant context** — `TenantContextInterceptor` (`common/interceptors/`) runs
+  after `JwtAuthGuard` and publishes `req.user.companyId` into an
+  `AsyncLocalStorage` store (`prisma/tenant-context.ts`). No second mechanism:
+  the store is fed from the same JWT claim controllers used to pass by hand.
+- **Fail-open on missing context** — a company-less superadmin (or a
+  `@Public()` route / bootstrap path) leaves `companyId` undefined and queries
+  run **unscoped**; the soft-delete filter still applies. `Role` and `User` are
+  deliberately excluded (superadmin/RBAC queries must stay cross-company).
+- **Restore rule** — `update`/`updateMany` inject `deletedAt: null` (target a
+  live row) *unless* `data.deletedAt === null`, in which case they inject
+  `deletedAt: { not: null }` (restore only an actually-deleted row). This keeps
+  department restore working and blocks double soft-deletes.
+- **Not covered** — `findUnique`, `create`, `delete`; callers keep explicit
+  compound keys for those. Services therefore use `findFirst` where they used a
+  `findUnique` that needed tenant filtering.
+
 11 models in `packages/database/prisma/schema.prisma`, grouped:
 
 - **Identity/RBAC**: `User`, `Role`, `Permission`, `UserRole`, `RolePermission`
 - **Tokens**: `RefreshToken`, `Token`
 - **Ops**: `AuditLog`, `MenuVisibility`
 - **Org**: `Company`, `Department`
+- **Catalog/CRM**: `Customer`, `Product`, `ProductCategory`, `UnitOfMeasure`
 
 Notable details:
 
-- **Soft delete**: `deletedAt` on `User` and `Department` (filtered in queries,
-  indexed). `Company` has no soft delete — deleting a company cascades to its
-  roles and departments.
+- **Soft delete**: `deletedAt` on `User`, `Department`, `Customer`, `Product`,
+  `ProductCategory`, `UnitOfMeasure` (indexed where queried; enforced by the
+  extension for the tenant-scoped five). `Company` has no soft delete —
+  deleting a company cascades to its roles, departments, customers and
+  products.
 - `User` has no `companyId` FK; the RBAC invariant derives it from
   `User.department.companyId` (enforced in the service layer, not the schema).
 - `RefreshToken.tokenHash`, `Permission.name`, `User.email`/`username` are
@@ -157,7 +186,9 @@ Notable details:
   api-only secrets (`JWT_SECRET`, `REDIS_URL`, `RESEND_*`).
 - **CI** — `.github/workflows/pr-check.yml`: `yarn npm audit --severity high`
   - `turbo run lint typecheck test build`, with disposable `postgres:17` and
-    `redis:7` service containers.
+    `redis:7` service containers, then `turbo db:deploy` +
+    `RUN_DB_E2E=1 yarn workspace api test:e2e:db` (the real-DB tenant-scoping
+    proof; postgres is published on host port `5433`).
 
 ## Web architecture
 
@@ -181,10 +212,17 @@ Notable details:
 
 - Unit specs are colocated with source (`*.spec.ts`), run via
   `yarn workspace api test`.
-- E2E lives under `apps/api/test/` (`auth`, `company`, `department` e2e specs)
-  with DB mocks in `apps/api/test/mocks/`; run via `yarn workspace api test:e2e`.
+- E2E lives under `apps/api/test/` (`auth`, `company`, `department`, `customer`,
+  `product` e2e specs) with DB mocks in `apps/api/test/mocks/`; run via
+  `yarn workspace api test:e2e`. The in-memory Prisma mock mirrors the
+  tenant-scope extension from the request's AsyncLocalStorage tenant, but cannot
+  execute `$extends` itself.
+- Real-DB proof: `apps/api/test/tenant-scoping.db-e2e-spec.ts` (env-gated,
+  `RUN_DB_E2E=1`) runs against a migrated Postgres via
+  `yarn workspace api test:e2e:db` and asserts tenant/soft-delete isolation for
+  every scoped model.
 - API collections in `bruno/`: Auth, Company, Department, Roles, Health Check.
-- CI gates lint/typecheck/test/build (see above).
+- CI gates lint/typecheck/test/build + the DB e2e (see above).
 
 ## Where to look (expanded)
 
@@ -197,6 +235,7 @@ Notable details:
 | Web auth handling          | `apps/web/app/features/auth/{api,hooks,store}.ts`                  |
 | DB schema / migrations     | `packages/database/prisma/schema.prisma` + `prisma/migrations/`    |
 | Prisma client wiring       | `apps/api/src/prisma/prisma.service.ts`                            |
+| Tenant scoping / soft delete | `apps/api/src/prisma/{tenant-context,tenant-scope.extension}.ts`, `common/interceptors/tenant-context.interceptor.ts` |
 | Config / env vars          | `packages/config/src/env.schema.ts`, `env.ts`                      |
 | Cache / queue / email      | `apps/api/src/cache/`, `queue/`, `notification/`                   |
 | Company / department       | `apps/api/src/company/`, `apps/api/src/department/`                |

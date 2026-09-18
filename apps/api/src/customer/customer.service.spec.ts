@@ -41,6 +41,7 @@ describe('CustomerService', () => {
   const mockPrismaService = {
     customer: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -87,7 +88,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue(customers);
     mockPrismaService.customer.count.mockResolvedValue(2);
 
-    const result = await service.findAll(companyId, {});
+    const result = await service.findAll({});
 
     expect(result.data).toEqual(customers);
     expect(result.meta).toEqual({
@@ -98,27 +99,22 @@ describe('CustomerService', () => {
     });
   });
 
-  it('scopes the query to the given companyId and excludes soft-deleted rows', async () => {
+  it('leaves tenant scoping and soft-delete filtering to the Prisma extension', async () => {
     mockPrismaService.customer.findMany.mockResolvedValue([]);
     mockPrismaService.customer.count.mockResolvedValue(0);
 
-    await service.findAll(companyId, {});
+    await service.findAll({});
 
-    expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          companyId,
-          deletedAt: null,
-        }),
-      }),
-    );
+    const where = mockPrismaService.customer.findMany.mock.calls[0][0].where;
+    expect(where.companyId).toBeUndefined();
+    expect(where.deletedAt).toBeUndefined();
   });
 
   it('applies email, name, and taxId filters with case-insensitive contains', async () => {
     mockPrismaService.customer.findMany.mockResolvedValue([customers[0]]);
     mockPrismaService.customer.count.mockResolvedValue(1);
 
-    await service.findAll(companyId, {
+    await service.findAll({
       email: 'john',
       name: 'John',
       taxId: '123',
@@ -139,7 +135,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue(customers);
     mockPrismaService.customer.count.mockResolvedValue(2);
 
-    await service.findAll(companyId, {});
+    await service.findAll({});
 
     const call = mockPrismaService.customer.findMany.mock.calls[0][0];
     expect(call.where.email).toBeUndefined();
@@ -151,7 +147,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue([]);
     mockPrismaService.customer.count.mockResolvedValue(45);
 
-    const result = await service.findAll(companyId, { page: 3, pageSize: 10 });
+    const result = await service.findAll({ page: 3, pageSize: 10 });
 
     expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -171,7 +167,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue(customers);
     mockPrismaService.customer.count.mockResolvedValue(2);
 
-    await service.findAll(companyId, { sortBy: 'name', sortOrder: 'asc' });
+    await service.findAll({ sortBy: 'name', sortOrder: 'asc' });
 
     expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -184,7 +180,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue(customers);
     mockPrismaService.customer.count.mockResolvedValue(2);
 
-    await service.findAll(companyId, {});
+    await service.findAll({});
 
     expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -197,7 +193,7 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue([]);
     mockPrismaService.customer.count.mockResolvedValue(0);
 
-    const result = await service.findAll(companyId, { name: 'nonexistent' });
+    const result = await service.findAll({ name: 'nonexistent' });
 
     expect(result.data).toEqual([]);
     expect(result.meta.total).toBe(0);
@@ -208,19 +204,19 @@ describe('CustomerService', () => {
     mockPrismaService.customer.findMany.mockResolvedValue(customers);
     mockPrismaService.customer.count.mockResolvedValue(2);
 
-    await service.findAll(companyId, {});
+    await service.findAll({});
 
     expect(mockPrismaService.customer.findMany).toHaveBeenCalledTimes(1);
     expect(mockPrismaService.customer.count).toHaveBeenCalledTimes(1);
   });
 
   it('should find a customer by id', async () => {
-    mockPrismaService.customer.findUnique.mockResolvedValue(customer);
+    mockPrismaService.customer.findFirst.mockResolvedValue(customer);
 
-    const result = await service.findOne(customerId, companyId);
+    const result = await service.findOne(customerId);
 
-    expect(mockPrismaService.customer.findUnique).toHaveBeenCalledWith({
-      where: { id: customerId, companyId, deletedAt: null },
+    expect(mockPrismaService.customer.findFirst).toHaveBeenCalledWith({
+      where: { id: customerId },
     });
     expect(result).toEqual(customer);
   });
@@ -231,9 +227,8 @@ describe('CustomerService', () => {
       email: 'updated.customer@example.com',
     };
 
-    mockPrismaService.customer.findUnique
-      .mockResolvedValueOnce(customer)
-      .mockResolvedValueOnce(null);
+    mockPrismaService.customer.findFirst.mockResolvedValue(customer);
+    mockPrismaService.customer.findUnique.mockResolvedValue(null);
     mockPrismaService.customer.update.mockResolvedValue({
       ...customer,
       ...updateCustomerDto,
@@ -242,13 +237,12 @@ describe('CustomerService', () => {
     const result = await service.update(
       customerId,
       updateCustomerDto,
-      companyId,
       userId,
       req,
     );
 
     expect(mockPrismaService.customer.update).toHaveBeenCalledWith({
-      where: { id: customerId, companyId, deletedAt: null },
+      where: { id: customerId },
       data: updateCustomerDto,
     });
 
@@ -259,15 +253,16 @@ describe('CustomerService', () => {
   });
 
   it('should soft delete a customer', async () => {
+    mockPrismaService.customer.findFirst.mockResolvedValue(customer);
     mockPrismaService.customer.update.mockResolvedValue({
       ...customer,
       deletedAt: new Date(),
     });
 
-    const result = await service.delete('customer-id', companyId, userId, req);
+    const result = await service.delete('customer-id', userId, req);
 
     expect(mockPrismaService.customer.update).toHaveBeenCalledWith({
-      where: { id: 'customer-id', companyId, deletedAt: null },
+      where: { id: 'customer-id' },
       data: { deletedAt: expect.any(Date) },
     });
 

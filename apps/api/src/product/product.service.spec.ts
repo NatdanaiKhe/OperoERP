@@ -44,6 +44,7 @@ describe('ProductService', () => {
   const mockPrismaService = {
     product: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -99,7 +100,7 @@ describe('ProductService', () => {
     mockPrismaService.product.findMany.mockResolvedValue(products);
     mockPrismaService.product.count.mockResolvedValue(2);
 
-    const result = await service.findAll(companyId, {});
+    const result = await service.findAll({});
 
     expect(result.data).toEqual(products);
     expect(result.meta).toEqual({
@@ -113,7 +114,7 @@ describe('ProductService', () => {
     mockPrismaService.product.findMany.mockResolvedValue([]);
     mockPrismaService.product.count.mockResolvedValue(0);
 
-    await service.findAll(companyId, {
+    await service.findAll({
       categoryId: 'category-id',
       isActive: false,
     });
@@ -121,60 +122,58 @@ describe('ProductService', () => {
     expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          companyId,
-          deletedAt: null,
           categoryId: 'category-id',
           isActive: false,
         }),
         include: { category: true, baseUom: true },
       }),
     );
+    // Tenant + soft-delete filters now live in the Prisma extension.
+    const where = mockPrismaService.product.findMany.mock.calls[0][0].where;
+    expect(where.companyId).toBeUndefined();
+    expect(where.deletedAt).toBeUndefined();
   });
 
-  it('get all categories scoped to company, non-deleted, ordered by name', async () => {
+  it('get all categories ordered by name (tenant scope from extension)', async () => {
     const categories = [{ id: 'category-id', name: 'Accessories', companyId }];
     mockPrismaService.productCategory.findMany.mockResolvedValue(categories);
 
-    const result = await service.findAllCategory(companyId);
+    const result = await service.findAllCategory();
 
     expect(mockPrismaService.productCategory.findMany).toHaveBeenCalledWith({
-      where: { companyId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
     expect(result).toEqual(categories);
   });
 
-  it('get all UOMs scoped to company, non-deleted, ordered by name', async () => {
-    const uoms = [
-      { id: 'uom-id', name: 'Piece', symbol: 'pc', companyId },
-    ];
+  it('get all UOMs ordered by name (tenant scope from extension)', async () => {
+    const uoms = [{ id: 'uom-id', name: 'Piece', symbol: 'pc', companyId }];
     mockPrismaService.unitOfMeasure.findMany.mockResolvedValue(uoms);
 
-    const result = await service.findAllUom(companyId);
+    const result = await service.findAllUom();
 
     expect(mockPrismaService.unitOfMeasure.findMany).toHaveBeenCalledWith({
-      where: { companyId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
     expect(result).toEqual(uoms);
   });
 
   it('should get a product by id', async () => {
-    mockPrismaService.product.findUnique.mockResolvedValue(product);
+    mockPrismaService.product.findFirst.mockResolvedValue(product);
 
-    const result = await service.findOne(productId, companyId);
+    const result = await service.findOne(productId);
 
-    expect(mockPrismaService.product.findUnique).toHaveBeenCalledWith({
-      where: { id: productId, companyId, deletedAt: null },
+    expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
+      where: { id: productId },
       include: { category: true, baseUom: true },
     });
     expect(result).toEqual(product);
   });
 
   it('should throw an error if product not found', async () => {
-    mockPrismaService.product.findUnique.mockResolvedValue(null);
+    mockPrismaService.product.findFirst.mockResolvedValue(null);
 
-    await expect(service.findOne(productId, companyId)).rejects.toThrow(
+    await expect(service.findOne(productId)).rejects.toThrow(
       new NotFoundException(`Product not found`),
     );
   });
@@ -183,16 +182,10 @@ describe('ProductService', () => {
     const updatedProduct = { ...product, name: 'Updated Product' };
     mockPrismaService.product.update.mockResolvedValue(updatedProduct);
 
-    const result = await service.update(
-      productId,
-      updatedProduct,
-      companyId,
-      userId,
-      req,
-    );
+    const result = await service.update(productId, updatedProduct, userId, req);
 
     expect(mockPrismaService.product.update).toHaveBeenCalledWith({
-      where: { id: productId, companyId, deletedAt: null },
+      where: { id: productId },
       data: updatedProduct,
     });
     expect(result).toEqual(updatedProduct);
@@ -204,7 +197,7 @@ describe('ProductService', () => {
     );
 
     await expect(
-      service.update(productId, product, companyId, userId, req),
+      service.update(productId, product, userId, req),
     ).rejects.toThrow(new NotFoundException(`Product not found`));
   });
 
@@ -217,7 +210,7 @@ describe('ProductService', () => {
     );
 
     await expect(
-      service.update(productId, product, companyId, userId, req),
+      service.update(productId, product, userId, req),
     ).rejects.toThrow(
       new ConflictException(
         'Product with this SKU already exists in this company',
@@ -229,10 +222,10 @@ describe('ProductService', () => {
     const deletedProduct = { ...product, deletedAt: new Date() };
     mockPrismaService.product.update.mockResolvedValue(deletedProduct);
 
-    const result = await service.remove(productId, companyId, userId, req);
+    const result = await service.remove(productId, userId, req);
 
     expect(mockPrismaService.product.update).toHaveBeenCalledWith({
-      where: { id: productId, companyId, deletedAt: null },
+      where: { id: productId },
       data: { deletedAt: expect.any(Date) },
     });
     expect(result).toEqual(deletedProduct);
@@ -243,8 +236,8 @@ describe('ProductService', () => {
       new NotFoundException('Product not found'),
     );
 
-    await expect(
-      service.remove(productId, companyId, userId, req),
-    ).rejects.toThrow(new NotFoundException(`Product not found`));
+    await expect(service.remove(productId, userId, req)).rejects.toThrow(
+      new NotFoundException(`Product not found`),
+    );
   });
 });

@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
+import { TenantContextInterceptor } from '@/common/interceptors/tenant-context.interceptor';
 import { NotificationModule } from '@/notification/notification.module';
 import { RolesModule } from '@/roles/roles.module';
 import { QueueModule } from '@/queue/queue.module';
@@ -39,6 +40,7 @@ import { ProductModule } from '@/product/product.module';
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })
 export class AppModule {}

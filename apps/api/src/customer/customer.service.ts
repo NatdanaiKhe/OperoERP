@@ -54,21 +54,16 @@ export class CustomerService {
     return customer;
   }
 
-  async findAll(
-    companyId: string,
-    {
-      email,
-      name,
-      taxId,
-      page = 1,
-      pageSize = 20,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-    }: FindCustomersDto,
-  ) {
+  async findAll({
+    email,
+    name,
+    taxId,
+    page = 1,
+    pageSize = 20,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+  }: FindCustomersDto) {
     const where: Prisma.CustomerWhereInput = {
-      deletedAt: null,
-      companyId,
       email: email ? { contains: email, mode: 'insensitive' } : undefined,
       name: name ? { contains: name, mode: 'insensitive' } : undefined,
       taxId: taxId ? { contains: taxId, mode: 'insensitive' } : undefined,
@@ -95,11 +90,12 @@ export class CustomerService {
     };
   }
 
-  async findOne(id: string, companyId?: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id, companyId, deletedAt: null },
+  async findOne(id: string) {
+    // findFirst (not findUnique) so the tenant-scope extension applies.
+    const customer = await this.prisma.customer.findFirst({
+      where: { id },
     });
-    if (!customer || customer.deletedAt) {
+    if (!customer) {
       throw new NotFoundException(`Customer with ID ${id} not found`);
     }
     return customer;
@@ -108,12 +104,11 @@ export class CustomerService {
   async update(
     id: string,
     updateCustomerDto: UpdateCustomerDto,
-    companyId: string,
     requestingUserId: string,
     req: Request,
   ) {
-    const existing = await this.prisma.customer.findUnique({
-      where: { id, companyId, deletedAt: null },
+    const existing = await this.prisma.customer.findFirst({
+      where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Customer with ID ${id} not found`);
@@ -127,7 +122,7 @@ export class CustomerService {
         where: {
           companyId_email: {
             email: updateCustomerDto.email!,
-            companyId,
+            companyId: existing.companyId,
           },
         },
       });
@@ -139,7 +134,7 @@ export class CustomerService {
     }
 
     const customer = await this.prisma.customer.update({
-      where: { id, companyId, deletedAt: null },
+      where: { id },
       data: updateCustomerDto,
     });
 
@@ -152,21 +147,16 @@ export class CustomerService {
     return customer;
   }
 
-  async delete(
-    id: string,
-    companyId: string,
-    requestingUserId: string,
-    req: Request,
-  ) {
-    const existing = await this.prisma.customer.findUnique({
-      where: { id, companyId, deletedAt: null },
+  async delete(id: string, requestingUserId: string, req: Request) {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Customer with ID ${id} not found`);
     }
 
     const customer = await this.prisma.customer.update({
-      where: { id, companyId, deletedAt: null },
+      where: { id },
       data: { deletedAt: new Date() },
     });
 
