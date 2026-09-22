@@ -22,7 +22,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
-import { applyTenantScope } from '@/prisma/tenant-scope.extension';
+import {
+  applyTenantScope,
+  applyTenantOnlyScope,
+} from '@/prisma/tenant-scope.extension';
+import { getTenantContext } from '@/prisma/tenant-context';
 import { EmailProcessor } from '@/notification/email.processor';
 import { Prisma } from 'database';
 
@@ -42,6 +46,8 @@ export function createMockPrisma() {
   const uoms = new Map<string, Record<string, unknown>>();
   const customers = new Map<string, Record<string, unknown>>();
   const roles = new Map<string, Record<string, unknown>>();
+  const inventoryItems = new Map<string, Record<string, unknown>>();
+  const stockMovements = new Map<string, Record<string, unknown>>();
   let nextUserId = 1;
   let nextTokenId = 1;
   let nextRefreshTokenId = 1;
@@ -49,6 +55,8 @@ export function createMockPrisma() {
   let nextDepartmentId = 1;
   let nextProductId = 1;
   let nextCustomerId = 1;
+  let nextInventoryItemId = 1;
+  let nextStockMovementId = 1;
 
   // Generic subset of Prisma's where semantics used by these services:
   // scalar equality, `null` (IS NULL), `{ not: null }` and
@@ -93,6 +101,14 @@ export function createMockPrisma() {
       where: Record<string, unknown>;
     };
 
+  const scopedOnly = <T extends Record<string, unknown>>(
+    operation: string,
+    args?: T,
+  ): T & { where: Record<string, unknown> } =>
+    applyTenantOnlyScope(operation, args ?? ({} as T)) as T & {
+      where: Record<string, unknown>;
+    };
+
   // Resolves the `include` relations the ProductService requests.
   const withProductIncludes = (
     p: Record<string, unknown>,
@@ -109,6 +125,12 @@ export function createMockPrisma() {
         ? (uoms.get(p.baseUomId as string) ?? null)
         : null;
     }
+    if (include?.inventoryItems) {
+      const companyId = (getTenantContext() as { companyId?: string } | undefined)?.companyId;
+      result.inventoryItems = Array.from(inventoryItems.values()).filter(
+        (i) => i.productId === p.id && (!companyId || i.companyId === companyId),
+      );
+    }
     return result;
   };
 
@@ -119,8 +141,191 @@ export function createMockPrisma() {
     });
   };
 
+  const txLike = () => ({
+    inventoryItem: inventoryItemDelegate(),
+    stockMovement: stockMovementDelegate(),
+  });
+
+  const inventoryItemDelegate = () => ({
+    create: jest
+      .fn()
+      .mockImplementation((args: { data: Record<string, unknown> }) => {
+        const id = String(nextInventoryItemId++);
+        const item: Record<string, unknown> = {
+          ...args.data,
+          id,
+          quantity: args.data.quantity ?? 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        for (const existing of inventoryItems.values()) {
+          if (
+            existing.companyId === item.companyId &&
+            existing.productId === item.productId
+          ) {
+            return Promise.reject(
+              new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+                code: 'P2002',
+                clientVersion: 'test',
+              }),
+            );
+          }
+        }
+        inventoryItems.set(id, item);
+        return Promise.resolve(item);
+      }),
+
+    findUnique: jest
+      .fn()
+      .mockImplementation((args: { where: Record<string, unknown> }) => {
+        const { where } = args;
+        if (where.id) {
+          return Promise.resolve(inventoryItems.get(where.id as string) ?? null);
+        }
+        if (where.companyId_productId) {
+          const { companyId, productId } = where.companyId_productId as {
+            companyId: string;
+            productId: string;
+          };
+          for (const item of inventoryItems.values()) {
+            if (
+              item.companyId === companyId &&
+              item.productId === productId
+            ) {
+              return Promise.resolve(item);
+            }
+          }
+        }
+        return Promise.resolve(null);
+      }),
+
+    findFirst: jest
+      .fn()
+      .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+        const args = scopedOnly('findFirst', rawArgs);
+        for (const item of inventoryItems.values()) {
+          if (matchWhere(item, args.where)) return Promise.resolve(item);
+        }
+        return Promise.resolve(null);
+      }),
+
+    findMany: jest
+      .fn()
+      .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+        const args = scopedOnly('findMany', rawArgs);
+        return Promise.resolve(
+          Array.from(inventoryItems.values()).filter((i) =>
+            matchWhere(i, args.where),
+          ),
+        );
+      }),
+
+    count: jest
+      .fn()
+      .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+        const args = scopedOnly('count', rawArgs);
+        return Promise.resolve(
+          Array.from(inventoryItems.values()).filter((i) =>
+            matchWhere(i, args.where),
+          ).length,
+        );
+      }),
+
+    upsert: jest
+      .fn()
+      .mockImplementation(
+        (args: {
+          where: Record<string, unknown>;
+          create: Record<string, unknown>;
+          update: Record<string, unknown>;
+        }) => {
+          const compound = args.where.companyId_productId as
+            | { companyId: string; productId: string }
+            | undefined;
+          if (!compound) return Promise.reject(new Error('unsupported upsert'));
+          for (const [, item] of inventoryItems) {
+            if (
+              item.companyId === compound.companyId &&
+              item.productId === compound.productId
+            ) {
+              Object.assign(item, args.update ?? {}, { updatedAt: new Date() });
+              return Promise.resolve(item);
+            }
+          }
+          return inventoryItemDelegate()
+            .create({ data: args.create })
+            .then((created: Record<string, unknown>) => {
+              inventoryItems.set(created.id as string, created);
+              return created;
+            });
+        },
+      ),
+  });
+
+  const stockMovementDelegate = () => ({
+    create: jest
+      .fn()
+      .mockImplementation((args: { data: Record<string, unknown> }) => {
+        const id = String(nextStockMovementId++);
+        const movement = {
+          ...args.data,
+          id,
+          createdAt: new Date(),
+        };
+        stockMovements.set(id, movement);
+        return Promise.resolve(movement);
+      }),
+
+    findMany: jest
+      .fn()
+      .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+        const args = scopedOnly('findMany', rawArgs);
+        let all = Array.from(stockMovements.values()).filter((m) =>
+          matchWhere(m, args.where),
+        );
+        const orderBy = args.orderBy as
+          | { createdAt?: 'asc' | 'desc' }
+          | undefined;
+        if (orderBy?.createdAt) {
+          const dir = orderBy.createdAt;
+          all = all.sort((a, b) =>
+            dir === 'asc'
+              ? Number(a.createdAt) - Number(b.createdAt)
+              : Number(b.createdAt) - Number(a.createdAt),
+          );
+        }
+        const skip = typeof args.skip === 'number' ? args.skip : 0;
+        const take = typeof args.take === 'number' ? args.take : all.length;
+        return Promise.resolve(all.slice(skip, skip + take));
+      }),
+
+    count: jest
+      .fn()
+      .mockImplementation((rawArgs: Record<string, unknown> = {}) => {
+        const args = scopedOnly('count', rawArgs);
+        return Promise.resolve(
+          Array.from(stockMovements.values()).filter((m) =>
+            matchWhere(m, args.where),
+          ).length,
+        );
+      }),
+  });
+
   return {
-    _seed: { departments, roles, products, productCategories, uoms, customers },
+    _seed: {
+      departments,
+      roles,
+      products,
+      productCategories,
+      uoms,
+      customers,
+      inventoryItems,
+      stockMovements,
+    },
+
+    $transaction: jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
+      callback(txLike()),
+    ),
 
     user: {
       findUnique: jest
@@ -593,7 +798,8 @@ export function createMockPrisma() {
         .fn()
         .mockImplementation((args: { where: Record<string, unknown> }) => {
           const compound = args.where.companyId_email as
-            { companyId: string; email: string } | undefined;
+            { companyId: string; email: string }
+            | undefined;
           if (!compound) return Promise.resolve(null);
           for (const c of customers.values()) {
             if (
@@ -671,6 +877,9 @@ export function createMockPrisma() {
           },
         ),
     },
+
+    inventoryItem: inventoryItemDelegate(),
+    stockMovement: stockMovementDelegate(),
   };
 }
 

@@ -1,0 +1,57 @@
+enum StockMovementType {
+    RECEIPT // manual stock-in (initial stock, restock)
+    ADJUSTMENT // manual correction, +/-
+    WRITE_OFF // manual stock-out (loss, damage)
+    SALE // deducted by Sales Order fulfillment 
+    SALE_CANCELLED // reversed by Sales Order cancellation
+}
+
+model InventoryItem {
+    id        String  @id @default(cuid())
+    companyId String  @map("company_id")
+    company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+    productId String  @map("product_id")
+    product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+    // cached value, StockMovement is the append-only log that produces this.
+    quantity Decimal @default(0) @db.Decimal(18, 4)
+
+    // Low-stock threshold. Null = no threshold, no flag shown.
+    reorderPoint Decimal? @map("reorder_point") @db.Decimal(18, 4)
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    movements StockMovement[]
+
+    @@unique([companyId, productId])
+    @@index([companyId])
+    @@map("inventory_items")
+}
+
+model StockMovement {
+    id        String  @id @default(cuid())
+    companyId String  @map("company_id")
+    company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+    productId String  @map("product_id")
+    product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+    inventoryItemId String        @map("inventory_item_id")
+    inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+    type     StockMovementType
+    quantity Decimal           @db.Decimal(18, 4) // signed: +in / -out
+
+    reason      String? // required at app layer for RECEIPT/ADJUSTMENT/WRITE_OFF
+    referenceId String? @map("reference_id") // Sales Order id, for SALE/SALE_CANCELLED
+
+    createdById String @map("created_by_id")
+    createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+    createdAt DateTime @default(now()) @map("created_at")
+
+    @@index([companyId, productId])
+    @@map("stock_movements")
+}
