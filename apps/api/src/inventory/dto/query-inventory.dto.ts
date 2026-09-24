@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBooleanString, IsOptional, IsString } from 'class-validator';
+import { IsBooleanString, IsIn, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from './pagination-dto';
 
 export class QueryInventoryDto extends PaginationDto {
@@ -14,4 +14,12 @@ export class QueryInventoryDto extends PaginationDto {
   @IsOptional()
   @IsBooleanString()
   lowStockOnly?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by stock status',
+    enum: ['in_stock', 'low', 'out_of_stock'],
+  })
+  @IsOptional()
+  @IsIn(['in_stock', 'low', 'out_of_stock'])
+  status?: 'in_stock' | 'low' | 'out_of_stock';
 }

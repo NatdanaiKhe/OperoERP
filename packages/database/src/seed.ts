@@ -242,6 +242,7 @@ const MENU_KEYS = [
   'department_management',
   'customers',
   'products',
+  'inventory',
   'sales',
   'approvals',
   'reports',
@@ -259,6 +260,7 @@ const MENU_DEFAULTS: Record<string, string[]> = {
     'dashboard',
     'customers',
     'products',
+    'inventory',
     'sales',
     'approvals',
     'reports',
@@ -274,7 +276,7 @@ const MENU_DEFAULTS: Record<string, string[]> = {
     'reports',
     'quick_action',
   ],
-  warehouse_staff: ['dashboard', 'products', 'sales'],
+  warehouse_staff: ['dashboard', 'products', 'inventory', 'sales'],
   accountant: ['dashboard', 'reports', 'customers'],
 };
 

@@ -20,6 +20,7 @@ const MENU_LABELS: { key: string; label: string }[] = [
   { key: 'user_management', label: 'User Management' },
   { key: 'customers', label: 'Customers' },
   { key: 'products', label: 'Products' },
+  { key: 'inventory', label: 'Inventory' },
   { key: 'sales', label: 'Sales' },
   { key: 'approvals', label: 'Approvals' },
   { key: 'reports', label: 'Reports' },

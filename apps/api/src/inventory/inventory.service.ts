@@ -26,17 +26,16 @@ export class InventoryService {
   ) {}
 
   private toResponse(
-    product: Pick<ProductModel, 'id' | 'name'>,
+    product: Pick<ProductModel, 'id' | 'name' | 'sku'>,
     item?: InventoryItemModel | null,
   ): InventoryItemResponseDto {
     const quantity = Number(item?.quantity ?? 0);
-    const reorderPoint = item?.reorderPoint
-      ? Number(item.reorderPoint)
-      : null;
+    const reorderPoint = item?.reorderPoint ? Number(item.reorderPoint) : null;
     return {
       id: item?.id ?? null,
       productId: product.id,
       productName: product.name,
+      sku: product.sku,
       quantity,
       reorderPoint,
       isLowStock: reorderPoint !== null && quantity <= reorderPoint,
@@ -46,9 +45,13 @@ export class InventoryService {
   async findAll({
     search,
     lowStockOnly,
+    status,
     page = 1,
     limit = 10,
-  }: QueryInventoryDto): Promise<{ data: InventoryItemResponseDto[]; meta: { total: number; page: number; limit: number } }> {
+  }: QueryInventoryDto): Promise<{
+    data: InventoryItemResponseDto[];
+    meta: { total: number; page: number; limit: number };
+  }> {
     const where: Prisma.ProductWhereInput = {
       type: 'STOCKABLE',
       ...(search && {
@@ -59,7 +62,13 @@ export class InventoryService {
       }),
     };
 
-    if (lowStockOnly === 'true') {
+    const needsMaterialize =
+      lowStockOnly === 'true' ||
+      status === 'low' ||
+      status === 'out_of_stock' ||
+      status === 'in_stock';
+
+    if (needsMaterialize) {
       // Quantity lives on InventoryItem, so we have to materialize and filter
       // in JS before slicing. The list cap (limit <= 100) keeps this cheap.
       const products = await this.prisma.product.findMany({
@@ -67,12 +76,24 @@ export class InventoryService {
         include: { inventoryItems: true },
         orderBy: { name: 'asc' },
       });
-      const data = products
-        .map((p) => this.toResponse(p, p.inventoryItems[0] ?? null))
-        .filter((d) => d.isLowStock);
+      let data = products.map((p) =>
+        this.toResponse(p, p.inventoryItems[0] ?? null),
+      );
+
+      if (lowStockOnly === 'true' || status === 'low') {
+        data = data.filter((d) => d.isLowStock);
+      } else if (status === 'out_of_stock') {
+        data = data.filter((d) => d.quantity === 0);
+      } else if (status === 'in_stock') {
+        data = data.filter((d) => d.quantity > 0 && !d.isLowStock);
+      }
+
       const total = data.length;
       const skip = (page - 1) * limit;
-      return { data: data.slice(skip, skip + limit), meta: { total, page, limit } };
+      return {
+        data: data.slice(skip, skip + limit),
+        meta: { total, page, limit },
+      };
     }
 
     const [products, total] = await Promise.all([
@@ -114,7 +135,10 @@ export class InventoryService {
   async getMovementHistory(
     productId: string,
     { page = 1, limit = 10 }: PaginationDto,
-  ): Promise<{ data: StockMovementModel[]; meta: { total: number; page: number; limit: number } }> {
+  ): Promise<{
+    data: StockMovementModel[];
+    meta: { total: number; page: number; limit: number };
+  }> {
     const product = await this.prisma.product.findFirst({
       where: { id: productId },
     });
