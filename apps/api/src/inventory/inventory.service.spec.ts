@@ -225,9 +225,7 @@ describe('InventoryService', () => {
       mockPrismaService.product.findMany.mockResolvedValue([
         {
           ...stockableProduct,
-          inventoryItems: [
-            { id: 'inv-1', quantity: 3, reorderPoint: 5 },
-          ],
+          inventoryItems: [{ id: 'inv-1', quantity: 3, reorderPoint: 5 }],
         },
         {
           ...stockableProduct,
@@ -241,6 +239,84 @@ describe('InventoryService', () => {
         page: 1,
         limit: 10,
         lowStockOnly: 'true',
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].quantity).toBe(3);
+      expect(result.data[0].isLowStock).toBe(true);
+      expect(result.data[0].sku).toBe('SKU-001');
+    });
+
+    it('filters status=out_of_stock to items with zero quantity', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          ...stockableProduct,
+          inventoryItems: [{ id: 'inv-1', quantity: 0, reorderPoint: 5 }],
+        },
+        {
+          ...stockableProduct,
+          id: 'p-2',
+          inventoryItems: [{ id: 'inv-2', quantity: 10, reorderPoint: 5 }],
+        },
+      ]);
+
+      const result = await service.findAll({
+        page: 1,
+        limit: 10,
+        status: 'out_of_stock',
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].quantity).toBe(0);
+      expect(result.meta.total).toBe(1);
+    });
+
+    it('filters status=in_stock to non-low items with positive quantity', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          ...stockableProduct,
+          inventoryItems: [{ id: 'inv-1', quantity: 10, reorderPoint: 5 }],
+        },
+        {
+          ...stockableProduct,
+          id: 'p-2',
+          inventoryItems: [{ id: 'inv-2', quantity: 3, reorderPoint: 5 }],
+        },
+        {
+          ...stockableProduct,
+          id: 'p-3',
+          inventoryItems: [],
+        },
+      ]);
+
+      const result = await service.findAll({
+        page: 1,
+        limit: 10,
+        status: 'in_stock',
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].quantity).toBe(10);
+      expect(result.data[0].isLowStock).toBe(false);
+    });
+
+    it('filters status=low identically to lowStockOnly', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          ...stockableProduct,
+          inventoryItems: [{ id: 'inv-1', quantity: 3, reorderPoint: 5 }],
+        },
+        {
+          ...stockableProduct,
+          id: 'p-2',
+          inventoryItems: [{ id: 'inv-2', quantity: 10, reorderPoint: 5 }],
+        },
+      ]);
+
+      const result = await service.findAll({
+        page: 1,
+        limit: 10,
+        status: 'low',
       });
 
       expect(result.data).toHaveLength(1);
