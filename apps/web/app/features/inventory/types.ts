@@ -59,6 +59,22 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   SALE_CANCELLED: 'Sale Cancelled',
 };
 
+export const DEFAULT_MOVEMENT_PAGE_LIMIT = 10;
+
+export type MovementBadgeVariant =
+  'success' | 'destructive' | 'warning' | 'secondary';
+
+export const MOVEMENT_TYPE_VARIANTS: Record<
+  MovementType,
+  MovementBadgeVariant
+> = {
+  RECEIPT: 'success',
+  WRITE_OFF: 'destructive',
+  ADJUSTMENT: 'warning',
+  SALE: 'secondary',
+  SALE_CANCELLED: 'secondary',
+};
+
 export interface AdjustStockPayload {
   productId: string;
   type: ManualMovementType;

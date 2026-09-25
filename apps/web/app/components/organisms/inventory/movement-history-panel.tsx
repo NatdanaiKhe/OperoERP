@@ -22,39 +22,16 @@ import { QueryError } from '@/app/components/molecules/query-error';
 import { useMovements } from '@/app/features/inventory/hooks';
 import {
   MOVEMENT_TYPE_LABELS,
-  type MovementType,
-  type StockMovement,
+  MOVEMENT_TYPE_VARIANTS,
+  DEFAULT_MOVEMENT_PAGE_LIMIT,
 } from '@/app/features/inventory/types';
-import { formatDateTime } from '@/app/lib/format';
+import {
+  formatDateTime,
+  formatFullName,
+  formatSignedNumber,
+} from '@/app/lib/format';
 
-const LIMIT = 10;
-
-function movementVariant(type: MovementType) {
-  switch (type) {
-    case 'RECEIPT':
-      return 'success';
-    case 'WRITE_OFF':
-      return 'destructive';
-    case 'ADJUSTMENT':
-      return 'warning';
-    default:
-      return 'secondary';
-  }
-}
-
-function formatMovementQuantity(value: number | string) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  if (n > 0) return `+${n}`;
-  return String(n);
-}
-
-function actorName(movement: StockMovement) {
-  if (movement.createdBy) {
-    return `${movement.createdBy.firstName} ${movement.createdBy.lastName}`.trim();
-  }
-  return movement.createdById;
-}
+export const LIMIT = DEFAULT_MOVEMENT_PAGE_LIMIT;
 
 interface MovementHistoryPanelProps {
   productId: string;
@@ -116,15 +93,17 @@ export function MovementHistoryPanel({
                 {movements.map((movement) => (
                   <TableRow key={movement.id}>
                     <TableCell>
-                      <Badge variant={movementVariant(movement.type)}>
+                      <Badge variant={MOVEMENT_TYPE_VARIANTS[movement.type]}>
                         {MOVEMENT_TYPE_LABELS[movement.type]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
-                      {formatMovementQuantity(movement.quantity)}
+                      {formatSignedNumber(movement.quantity)}
                     </TableCell>
                     <TableCell>{movement.reason ?? '—'}</TableCell>
-                    <TableCell>{actorName(movement)}</TableCell>
+                    <TableCell>
+                      {formatFullName(movement.createdBy, movement.createdById)}
+                    </TableCell>
                     <TableCell>{formatDateTime(movement.createdAt)}</TableCell>
                   </TableRow>
                 ))}
