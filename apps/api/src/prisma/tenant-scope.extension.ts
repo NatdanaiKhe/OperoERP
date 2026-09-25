@@ -7,6 +7,8 @@ import { getTenantContext } from './tenant-context';
  * roles across/without a company (superadmin semantics), so scoping them would
  * break authorization. User has `deletedAt` but no `companyId`.
  */
+export const TENANT_ONLY_MODELS = ['inventoryItem', 'stockMovement'] as const;
+
 export const TENANT_SCOPED_MODELS = [
   'product',
   'productCategory',
@@ -38,6 +40,16 @@ interface ScopeArgs {
  *
  * Exported pure so the jest Prisma mock can mirror the extension exactly.
  */
+export function applyTenantOnlyScope<T extends ScopeArgs>(
+  operation: string,
+  args: T,
+): T {
+  if (!SCOPED_OPERATIONS.has(operation)) return args;
+  const companyId = getTenantContext()?.companyId;
+  if (!companyId) return args;
+  return { ...args, where: { ...(args?.where ?? {}), companyId } };
+}
+
 export function applyTenantScope<T extends ScopeArgs>(
   operation: string,
   args: T,
@@ -72,6 +84,20 @@ function modelExtension() {
   };
 }
 
+function tenantOnlyModelExtension() {
+  return {
+    $allOperations: ({
+      operation,
+      args,
+      query,
+    }: {
+      operation: string;
+      args: ScopeArgs;
+      query: (args: ScopeArgs) => Promise<unknown>;
+    }) => query(applyTenantOnlyScope(operation, args ?? {})),
+  };
+}
+
 /**
  * Prisma client extension: tenant-scoping + soft-delete filtering for every
  * model in `TENANT_SCOPED_MODELS`.
@@ -85,7 +111,12 @@ function modelExtension() {
  */
 export const tenantScopeExtension = {
   name: 'tenantScope',
-  query: Object.fromEntries(
-    TENANT_SCOPED_MODELS.map((model) => [model, modelExtension()]),
-  ),
+  query: {
+    ...Object.fromEntries(
+      TENANT_SCOPED_MODELS.map((model) => [model, modelExtension()]),
+    ),
+    ...Object.fromEntries(
+      TENANT_ONLY_MODELS.map((model) => [model, tenantOnlyModelExtension()]),
+    ),
+  },
 };

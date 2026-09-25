@@ -70,12 +70,14 @@ describe('applyTenantScope', () => {
 });
 
 describe('tenantScopeExtension', () => {
-  it('covers exactly the five tenant-scoped models', () => {
+  it('covers the tenant-scoped and tenant-only models', () => {
     expect(Object.keys(tenantScopeExtension.query).sort()).toEqual([
       'customer',
       'department',
+      'inventoryItem',
       'product',
       'productCategory',
+      'stockMovement',
       'unitOfMeasure',
     ]);
   });

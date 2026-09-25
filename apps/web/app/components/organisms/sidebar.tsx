@@ -7,6 +7,7 @@ import {
   UserCog,
   Building2,
   Package,
+  Boxes,
   Plus,
   Settings,
   LifeBuoy,
@@ -48,6 +49,12 @@ const ALL_NAV = [
     href: '/dashboard/products',
     icon: Package,
     menuKey: 'products',
+  },
+  {
+    label: 'Inventory',
+    href: '/dashboard/inventory',
+    icon: Boxes,
+    menuKey: 'inventory',
   },
 ] as const;
 
