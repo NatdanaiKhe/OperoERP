@@ -155,6 +155,11 @@ export class InventoryService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          createdBy: {
+            select: { firstName: true, lastName: true },
+          },
+        },
       }),
       this.prisma.stockMovement.count({ where: { productId } }),
     ]);

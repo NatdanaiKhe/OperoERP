@@ -8,7 +8,7 @@ interface DialogShellProps {
 
 export function DialogShell({ title, onClose, children }: DialogShellProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
