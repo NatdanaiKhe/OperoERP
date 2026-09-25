@@ -18,7 +18,7 @@ import { CompanyModule } from '@/company/company.module';
 import { DepartmentModule } from '@/department/department.module';
 import { CustomerModule } from '@/customer/customer.module';
 import { ProductModule } from '@/product/product.module';
-import { InventoryModule } from './inventory/inventory.module';
+import { InventoryModule } from '@/inventory/inventory.module';
 
 @Module({
   imports: [
