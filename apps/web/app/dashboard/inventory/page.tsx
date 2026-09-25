@@ -20,6 +20,9 @@ import {
   TableSkeleton,
   TableEmpty,
 } from '@/app/components/molecules/table-placeholder';
+import { AdjustStockDialog } from '@/app/components/organisms/inventory/adjust-stock-dialog';
+import { MovementHistoryPanel } from '@/app/components/organisms/inventory/movement-history-panel';
+import { usePermission } from '@/app/features/auth/hooks';
 import { useInventory } from '@/app/features/inventory/hooks';
 import type {
   InventoryFilters,
@@ -45,6 +48,11 @@ export default function InventoryPage() {
   const [status, setStatus] = useState<InventoryFilters['status']>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(
+    null,
+  );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { allow: canAdjust } = usePermission('inventory:update');
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
@@ -143,8 +151,8 @@ export default function InventoryPage() {
             {isLoading ? (
               <TableSkeleton
                 rows={5}
-                columns={5}
-                gridClassName="grid-cols-[1fr_2fr_1fr_1fr_1fr]"
+                columns={6}
+                gridClassName="grid-cols-[1fr_2fr_1fr_1fr_1fr_1fr]"
               />
             ) : items.length === 0 ? (
               <TableEmpty>{emptyState}</TableEmpty>
@@ -160,11 +168,29 @@ export default function InventoryPage() {
                         Reorder Point
                       </TableHeader>
                       <TableHeader>Status</TableHeader>
+                      <TableHeader className="text-right">Actions</TableHeader>
                     </TableHeaderRow>
                   </TableHead>
                   <TableBody>
                     {items.map((item) => (
-                      <TableRow key={item.productId}>
+                      <TableRow
+                        key={item.productId}
+                        tabIndex={0}
+                        aria-label={`View movement history for ${item.productName}`}
+                        onClick={() => setSelectedProduct(item)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedProduct(item);
+                          }
+                        }}
+                        className={
+                          selectedProduct?.productId === item.productId
+                            ? 'bg-secondary focus-visible:bg-secondary/80'
+                            : 'focus-visible:bg-secondary/80'
+                        }
+                      >
                         <TableCell>
                           <span className="font-mono text-sm text-foreground">
                             {item.sku ?? '—'}
@@ -186,6 +212,35 @@ export default function InventoryPage() {
                           </span>
                         </TableCell>
                         <TableCell>{statusBadge(item)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProduct(item);
+                              }}
+                              aria-label={`View movement history for ${item.productName}`}
+                            >
+                              History
+                            </Button>
+                            {canAdjust && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProduct(item);
+                                  setDialogOpen(true);
+                                }}
+                                aria-label={`Adjust stock for ${item.productName}`}
+                              >
+                                Adjust
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -236,6 +291,26 @@ export default function InventoryPage() {
               </Button>
             </div>
           </div>
+
+          {selectedProduct && (
+            <MovementHistoryPanel
+              key={selectedProduct.productId}
+              productId={selectedProduct.productId}
+              productName={selectedProduct.productName}
+              onClose={() => {
+                setSelectedProduct(null);
+                setDialogOpen(false);
+              }}
+            />
+          )}
+
+          {selectedProduct && (
+            <AdjustStockDialog
+              open={dialogOpen}
+              onClose={() => setDialogOpen(false)}
+              product={selectedProduct}
+            />
+          )}
         </>
       )}
     </div>

@@ -29,3 +29,19 @@ export function decimalPrefill(value: string | null | undefined): string {
   const n = Number(value);
   return Number.isNaN(n) ? '' : String(n);
 }
+
+export function formatSignedNumber(value: number | string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  if (n > 0) return `+${n}`;
+  return String(n);
+}
+
+export function formatFullName(
+  user?: { firstName?: string | null; lastName?: string | null } | null,
+  fallback: string = '—',
+): string {
+  if (!user) return fallback;
+  const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return name || fallback;
+}
